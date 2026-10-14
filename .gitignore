@@ -1,0 +1,25 @@
+# Dependencies & Environment
+.env
+.env.local
+.env.*.local
+node_modules/
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files & Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log

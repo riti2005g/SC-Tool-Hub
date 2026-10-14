@@ -1,26 +1,76 @@
 // ============================================================
 // SC Tool Hub — Core Application Logic
-// SharePoint + Power Automate Backend
+// Enterprise SharePoint + Power Automate Backend
 // ============================================================
 
 // ── Utility Helpers ────────────────────────────────────────────
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => r.querySelectorAll(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmtDate = d => new Date(d).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-const fmtSize = b => b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
+
+// High-security HTML character escaping for XSS prevention
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;"
+}[c]));
+
+const fmtDate = d => {
+  if (!d) return "—";
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return String(d);
+    return dt.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return String(d);
+  }
+};
+
+const fmtSize = b => {
+  const num = Number(b);
+  if (isNaN(num) || num <= 0) return "—";
+  return num > 1048576 
+    ? (num / 1048576).toFixed(1) + " MB" 
+    : Math.max(1, Math.round(num / 1024)) + " KB";
+};
+
+// Ensures relative SharePoint URLs work on GitHub Pages
+const getDownloadUrl = url => {
+  if (!url) return "#";
+  const clean = String(url).trim();
+  if (clean.startsWith("http://") || clean.startsWith("https://")) return clean;
+  if (clean.startsWith("/")) {
+    try {
+      const origin = new URL(CFG.SHAREPOINT_SITE_URL || "https://danfoss.sharepoint.com").origin;
+      return `${origin}${clean}`;
+    } catch {
+      return `https://danfoss.sharepoint.com${clean}`;
+    }
+  }
+  return clean;
+};
 
 // ── Navigation Definition ──────────────────────────────────────
 const NAV = [
   ["home",    "Home",            "🏠", "home.html"],
-  ["macros",  "Macro Files",     "📄", "macros.html"],
+  ["macros",  "Macro Files",     "📊", "macros.html"],
   ["bots",    "Automation Bots", "🤖", "bots.html"],
   ["ticket",  "Raise a Ticket",  "🎫", "ticket.html"],
   ["updates", "New Updates",     "📣", "updates.html"],
 ];
 
 // ── Theme Initialization ───────────────────────────────────────
-document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+const applyTheme = (theme) => {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem("theme", theme);
+  const themeBtn = $("#themeQuickToggle");
+  if (themeBtn) {
+    themeBtn.innerHTML = theme === "dark" ? "☀️" : "🌙";
+    themeBtn.setAttribute("title", `Switch to ${theme === "dark" ? "light" : "dark"} mode`);
+  }
+};
+applyTheme(localStorage.getItem("theme") || "light");
 
 // ── Session Management ─────────────────────────────────────────
 const Session = {
@@ -39,7 +89,9 @@ const Session = {
         return null;
       }
       return s;
-    } catch { return null; }
+    } catch { 
+      return null; 
+    }
   },
   clear() {
     localStorage.removeItem("sc_session");
@@ -52,31 +104,53 @@ const Session = {
 
 // ── API Client (calls Power Automate flows) ────────────────────
 const API = {
-  async call(flowUrl, action, data = {}) {
+  async call(flowUrl, action, data = {}, timeoutMs = 30000) {
     const session = Session.get();
     const body = {
       action,
       ...data,
       ...(session ? { sessionToken: session.token, userId: session.userId } : {})
     };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const res = await fetch(flowUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || `HTTP ${res.status}`);
+        let errMessage = `Server returned HTTP ${res.status}`;
+        try {
+          const errJson = await res.json();
+          if (errJson && (errJson.error || errJson.message)) {
+            errMessage = errJson.error || errJson.message;
+          }
+        } catch {
+          const errText = await res.text();
+          if (errText) errMessage = errText.slice(0, 150);
+        }
+        throw new Error(errMessage);
       }
-      return await res.json();
+
+      const text = await res.text();
+      return text ? JSON.parse(text) : { success: true };
     } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === "AbortError") {
+        throw new Error("Request timed out. Please check your network connection.");
+      }
       console.error(`API error [${action}]:`, err);
       throw err;
     }
   },
 
-  // Auth
+  // Auth Operations
   async login(email, password) {
     return this.call(CFG.FLOW_AUTH_URL, "login", { email, password });
   },
@@ -93,31 +167,37 @@ const API = {
     return this.call(CFG.FLOW_AUTH_URL, "updateProfile", { fullName, department });
   },
 
-  // Files
+  // Files Operations
   async listFiles() {
     return this.call(CFG.FLOW_FILES_URL, "list");
   },
   async uploadFile(file) {
-    // For file uploads, use FormData
     const session = Session.get();
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("action", "upload");
-    formData.append("userId", session?.userId || "");
-    formData.append("sessionToken", session?.token || "");
-
-    const res = await fetch(CFG.FLOW_FILES_URL, {
-      method: "POST",
-      body: formData
+    // Convert file to Base64 for Power Automate compatibility
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        const base64 = typeof result === "string" ? result.split(",")[1] : "";
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
-    if (!res.ok) throw new Error("Upload failed");
-    return res.json();
+
+    return this.call(CFG.FLOW_FILES_URL, "upload", {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type || "application/octet-stream",
+      fileContent: base64Data,
+      uploadedBy: session?.fullName || session?.email || "Admin"
+    }, 60000); // 60s timeout for file upload
   },
-  async deleteFile(fileId) {
-    return this.call(CFG.FLOW_FILES_URL, "delete", { fileId });
+  async deleteFile(fileId, fileName = "") {
+    return this.call(CFG.FLOW_FILES_URL, "delete", { fileId, fileName });
   },
 
-  // Tickets
+  // Tickets Operations
   async listTickets() {
     return this.call(CFG.FLOW_TICKETS_URL, "list");
   },
@@ -128,7 +208,7 @@ const API = {
     return this.call(CFG.FLOW_TICKETS_URL, "updateStatus", { ticketId, status, adminNotes });
   },
 
-  // Updates
+  // Updates Operations
   async listUpdates() {
     return this.call(CFG.FLOW_UPDATES_URL, "list");
   },
@@ -136,7 +216,7 @@ const API = {
     return this.call(CFG.FLOW_UPDATES_URL, "create", { title, body });
   },
 
-  // Admin
+  // Admin Operations
   async listUsers() {
     return this.call(CFG.FLOW_ADMIN_URL, "listUsers");
   },
@@ -150,17 +230,19 @@ const API = {
     return this.call(CFG.FLOW_ADMIN_URL, "listAllTickets");
   },
 
-  // Logs
+  // Audit Logs Operations
   async log(action, details = "") {
     try {
+      const session = Session.get();
       await this.call(CFG.FLOW_LOGS_URL, "log", {
         logAction: action,
-        details,
+        details: String(details).slice(0, 500),
+        userEmail: session?.email || "anonymous",
         pageUrl: window.location.pathname,
         timestamp: new Date().toISOString()
-      });
+      }, 8000);
     } catch (e) {
-      // Logging should never block the UI
+      // Non-blocking background log
       console.warn("Log failed:", e);
     }
   },
@@ -180,13 +262,22 @@ function showToast(message, type = "info", duration = 4000) {
   const icons = { success: "✅", error: "❌", info: "ℹ️" };
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.innerHTML = `<span>${icons[type] || ""}</span><span>${esc(message)}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => {
+  toast.innerHTML = `
+    <span class="toast-ic">${icons[type] || "ℹ️"}</span>
+    <span class="toast-txt">${esc(message)}</span>
+    <button class="toast-close" aria-label="Close">&times;</button>
+  `;
+
+  const closeBtn = toast.querySelector(".toast-close");
+  const dismiss = () => {
     toast.style.opacity = "0";
-    toast.style.transform = "translateX(80px)";
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
+    toast.style.transform = "translateX(80px) scale(0.95)";
+    setTimeout(() => toast.remove(), 250);
+  };
+  closeBtn.onclick = dismiss;
+
+  container.appendChild(toast);
+  setTimeout(dismiss, duration);
 }
 
 // ── Shell Initialization (Layout Builder) ──────────────────────
@@ -200,7 +291,7 @@ async function initShell() {
   const page = document.body.dataset.page;
   const name = session.fullName || session.email.split("@")[0];
 
-  // Check for recent updates count (local fallback)
+  // Check for recent updates badge count
   let updatesBadge = "";
   try {
     const cached = JSON.parse(sessionStorage.getItem("sc_updates_count") || "0");
@@ -209,58 +300,90 @@ async function initShell() {
 
   const c = $("#content");
 
-  // Build the admin nav item if user is admin
+  // Admin nav button for authorized users
   const adminNav = session.role === "admin"
     ? `<a href="admin.html" class="${page === "admin" ? "on" : ""}"><span>🛡️</span>Admin Panel</a>`
     : "";
 
+  const currentTheme = localStorage.getItem("theme") || "light";
+
   document.body.innerHTML = `
     <header class="top">
-      <button class="burger" aria-label="Menu" id="bg">☰</button>
-      <span class="logo">Danfoss</span>
+      <button class="burger" aria-label="Toggle navigation menu" id="bg">☰</button>
+      <a href="home.html" class="logo-link">
+        <span class="logo">Danfoss</span>
+      </a>
       <h1>SC Supply Chain Tool Hub</h1>
-      <a class="bell" href="updates.html" aria-label="Updates">🔔${updatesBadge}</a>
-      <div class="user">
-        <div class="av">${esc(name[0].toUpperCase())}</div>
-        <span class="nm">${esc(name)}</span>
+      <div class="top-actions">
+        <button id="themeQuickToggle" class="icon-btn" aria-label="Toggle color theme" title="Toggle color theme">
+          ${currentTheme === "dark" ? "☀️" : "🌙"}
+        </button>
+        <a class="bell" href="updates.html" aria-label="Updates">🔔${updatesBadge}</a>
+        <div class="user" title="${esc(session.email)} (${esc(session.role || 'User')})">
+          <div class="av">${esc(name[0].toUpperCase())}</div>
+          <span class="nm">${esc(name)}</span>
+        </div>
       </div>
     </header>
     <div class="layout">
       <div class="side-overlay" id="sov"></div>
-      <nav class="side" id="sd">
+      <aside class="side" id="sd">
+        <div class="side-brand">
+          <span class="side-sub">Supply Chain Central</span>
+        </div>
         ${NAV.map(n => `<a href="${n[3]}" class="${n[0] === page ? "on" : ""}"><span>${n[2]}</span>${n[1]}</a>`).join("")}
         <div class="sp"></div>
         <hr>
         ${adminNav}
         <a href="settings.html" class="${page === "settings" ? "on" : ""}"><span>⚙️</span>Settings</a>
-        <a href="#" id="lo"><span>🚪</span>Sign out</a>
-      </nav>
+        <a href="#" id="lo" class="logout-link"><span>🚪</span>Sign out</a>
+      </aside>
       <div class="main">
         <footer class="foot">
-          <span>🌐 Danfoss | SC Supply Chain Tool Hub v${CFG.APP_VERSION}</span>
-          <span>Together for a sustainable tomorrow</span>
+          <div class="foot-left">
+            <span>🌐 Danfoss Supply Chain Tool Hub v${CFG.APP_VERSION}</span>
+            <span class="foot-dot">•</span>
+            <span>Connected to SharePoint Online</span>
+          </div>
+          <span>Engineering Tomorrow — Together for a sustainable tomorrow</span>
         </footer>
       </div>
     </div>`;
 
   $(".main").insertBefore(c, $(".foot"));
 
-  // Burger / sidebar toggle
+  // Quick theme toggle handler
+  const themeToggle = $("#themeQuickToggle");
+  if (themeToggle) {
+    themeToggle.onclick = () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      applyTheme(next);
+      API.log("theme_change", `Theme set to ${next}`);
+    };
+  }
+
+  // Burger & mobile drawer interaction
   const sidebar = $("#sd");
   const overlay = $("#sov");
-  const closeSidebar = () => { sidebar.classList.remove("open"); overlay.classList.remove("show"); };
+  const closeSidebar = () => { 
+    sidebar.classList.remove("open"); 
+    overlay.classList.remove("show"); 
+    document.body.style.overflow = "";
+  };
   $("#bg").onclick = () => {
-    sidebar.classList.toggle("open");
+    const isOpen = sidebar.classList.toggle("open");
     overlay.classList.toggle("show");
+    document.body.style.overflow = isOpen ? "hidden" : "";
   };
   overlay.onclick = closeSidebar;
-  // Close sidebar on navigation
   $$(".side a").forEach(a => a.addEventListener("click", closeSidebar));
 
-  // Sign out
+  // Sign out handler
   $("#lo").onclick = async e => {
     e.preventDefault();
-    API.log("logout");
+    try {
+      await API.log("logout", "User signed out");
+    } catch {}
     Session.clear();
     sessionStorage.clear();
     location.replace("login.html");

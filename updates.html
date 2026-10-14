@@ -3,34 +3,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="View the latest announcements and updates for SC Tool Hub.">
-  <title>New Updates · SC Tool Hub</title>
+  <meta name="description" content="View the latest announcements, macro updates, and release notes for SC Tool Hub.">
+  <title>Announcements & Updates · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
 </head>
 <body data-page="updates">
 <main id="content">
 
-  <h2 style="margin-top: 0;">New Updates</h2>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
+    <div>
+      <h2 style="margin: 0 0 6px;">Announcements & System Updates</h2>
+      <p style="color: var(--mu); font-size: 14px; margin: 0;">Stay up to date with new macro releases, bot improvements, and operational notices.</p>
+    </div>
+  </div>
 
-  <!-- Admin post form (hidden for non-admins) -->
-  <div id="adminPostSection" hidden class="card" style="margin-bottom: 20px;">
-    <h3 style="margin-top: 0;">📢 Post an update (admin)</h3>
+  <!-- Admin post form (shown only for admins) -->
+  <div id="adminPostSection" hidden class="card" style="margin-bottom: 28px; border-left: 4px solid var(--red);">
+    <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 18px;">📢 Broadcast an Update (Admin Action)</h3>
     <form id="postForm">
-      <label for="updateTitle">Title</label>
-      <input id="updateTitle" placeholder="Announcement title" required>
+      <label for="updateTitle">Announcement Headline</label>
+      <input id="updateTitle" placeholder="e.g. Major update: Inventory Reconciler v2.4 released" required>
 
-      <label for="updateBody">Details</label>
-      <textarea id="updateBody" rows="4" required placeholder="Write your announcement here..."></textarea>
+      <label for="updateBody">Detailed Notes / Instructions</label>
+      <textarea id="updateBody" rows="4" required placeholder="Describe changes, affected workflows, migration steps, or schedule..."></textarea>
 
-      <div style="margin-top: 14px;">
-        <button class="btn">📤 Publish</button>
+      <div style="margin-top: 16px;">
+        <button class="btn" id="publishBtn">📤 Publish Announcement</button>
       </div>
     </form>
   </div>
 
-  <!-- Updates list -->
-  <div id="updatesList"></div>
+  <!-- Updates list feed -->
+  <div id="updatesList">
+    <div class="empty">
+      <span class="spinner"></span>
+      <p style="margin-top: 12px;">Loading announcements from SharePoint…</p>
+    </div>
+  </div>
 
 </main>
 
@@ -40,49 +50,62 @@
   const S = await initShell();
   if (!S) return;
 
-  API.log("page_view", "Updates page");
+  API.log("page_view", "Updates & Announcements page");
 
   async function loadUpdates() {
+    const listEl = $("#updatesList");
     try {
       const result = await API.listUpdates();
       const updates = result.updates || [];
 
-      $("#updatesList").innerHTML = updates.length
-        ? updates.map(u => `
-            <article class="card upd">
-              <h3 style="margin: 0 0 6px;">${esc(u.Title)}</h3>
-              <small>${fmtDate(u.CreatedDate)}</small>
-              <p style="margin-top: 8px; color: var(--tx-secondary); line-height: 1.6;">${esc(u.Body)}</p>
-            </article>
-          `).join("")
-        : '<div class="empty">📭 No announcements yet.</div>';
+      if (!updates.length) {
+        listEl.innerHTML = '<div class="empty card">📭 No operational announcements published yet.</div>';
+        return;
+      }
+
+      listEl.innerHTML = updates.map(u => `
+        <article class="card" style="margin-bottom: 20px; border-left: 4px solid var(--red);">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px;">
+            <h3 style="margin: 0; font-size: 18px; color: var(--tx);">${esc(u.Title)}</h3>
+            <span style="font-size: 13px; color: var(--mu);">${fmtDate(u.CreatedDate)}</span>
+          </div>
+          <p style="margin-top: 12px; margin-bottom: 0; color: var(--tx-secondary); line-height: 1.65; white-space: pre-line;">${esc(u.Body)}</p>
+        </article>
+      `).join("");
     } catch (err) {
-      $("#updatesList").innerHTML = '<div class="empty">❌ Failed to load updates.</div>';
+      listEl.innerHTML = '<div class="empty card">⚠️ Unable to load announcements from SharePoint.</div>';
+      showToast("Failed to load updates", "error");
     }
   }
 
   loadUpdates();
 
-  // Admin: show post form
+  // Admin broadcast capabilities
   if (S.isAdmin) {
-    $("#adminPostSection").hidden = false;
+    const sec = $("#adminPostSection");
+    if (sec) sec.hidden = false;
 
     $("#postForm").onsubmit = async e => {
       e.preventDefault();
+      const btn = $("#publishBtn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Publishing…';
+
+      const title = $("#updateTitle").value.trim();
+      const body = $("#updateBody").value.trim();
 
       try {
-        await API.createUpdate(
-          $("#updateTitle").value.trim(),
-          $("#updateBody").value.trim()
-        );
-
-        API.log("admin_action", "Published update: " + $("#updateTitle").value.trim());
+        await API.createUpdate(title, body);
+        API.log("admin_action", `Published announcement: ${title}`);
         e.target.reset();
         loadUpdates();
-        showToast("Update published!", "success");
+        showToast("Announcement published successfully!", "success");
       } catch (err) {
-        showToast("Failed to publish update", "error");
+        showToast("Failed to publish announcement", "error");
       }
+
+      btn.disabled = false;
+      btn.textContent = "📤 Publish Announcement";
     };
   }
 })();

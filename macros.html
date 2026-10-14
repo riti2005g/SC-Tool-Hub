@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Browse, search, and download Excel macro files from SharePoint.">
+  <meta name="description" content="Browse, search, and download Excel macro files from SharePoint Online.">
   <title>Macro Files · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
@@ -11,29 +11,44 @@
 <body data-page="macros">
 <main id="content">
 
-  <h2 style="margin-top: 0;">Macro Files</h2>
-
-  <div class="bar">
-    <input id="searchInput" type="search" placeholder="🔍 Search macro files..." aria-label="Search macro files">
-    <select id="sortSelect" style="width: auto;">
-      <option value="d">Newest first</option>
-      <option value="n">Name A–Z</option>
-      <option value="s">Size ↓</option>
-    </select>
-    <button class="btn alt" id="refreshBtn">↻ Refresh</button>
-    <a class="btn" id="spLink" href="#" target="_blank" rel="noopener">📂 Open in SharePoint</a>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
+    <div>
+      <h2 style="margin: 0 0 6px;">Excel Macro Files</h2>
+      <p style="color: var(--mu); font-size: 14px; margin: 0;">Central repository synced with SharePoint Document Library.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn alt" id="refreshBtn">↻ Refresh Files</button>
+      <a class="btn" id="spLink" href="#" target="_blank" rel="noopener">📂 Open SharePoint Folder</a>
+    </div>
   </div>
 
-  <div class="card">
+  <div class="bar">
+    <input id="searchInput" type="search" placeholder="🔍 Search macro files by name or author…" aria-label="Search macro files">
+    <select id="typeFilter" style="width: auto;">
+      <option value="">All Extensions</option>
+      <option value=".xlsm">.xlsm (Macros)</option>
+      <option value=".xlsb">.xlsb (Binary)</option>
+      <option value=".xlsx">.xlsx (Workbook)</option>
+      <option value=".bas">.bas (Module)</option>
+    </select>
+    <select id="sortSelect" style="width: auto;">
+      <option value="d">Newest modified</option>
+      <option value="n">Name A–Z</option>
+      <option value="s">File Size ↓</option>
+    </select>
+  </div>
+
+  <div class="card" style="padding: 0; overflow: hidden;">
     <div class="tw">
       <table>
         <thead>
           <tr>
-            <th>File</th>
+            <th>File Name</th>
+            <th>Type</th>
             <th>Size</th>
-            <th>Modified</th>
-            <th>Modified by</th>
-            <th></th>
+            <th>Last Modified</th>
+            <th>Modified By</th>
+            <th style="text-align: right;">Action</th>
           </tr>
         </thead>
         <tbody id="fileTable"></tbody>
@@ -41,11 +56,14 @@
     </div>
     <div class="empty" id="statusMsg">
       <span class="spinner"></span>
-      <p style="margin-top: 12px;">Loading files from SharePoint…</p>
+      <p style="margin-top: 14px;">Connecting to SharePoint Document Library…</p>
     </div>
   </div>
 
-  <p style="color: var(--mu); font-size: 13px; margin-top: 8px;" id="lastSync"></p>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 13px; color: var(--mu); flex-wrap: wrap; gap: 8px;">
+    <span id="fileCount">0 files loaded</span>
+    <span id="lastSync"></span>
+  </div>
 
 </main>
 
@@ -55,69 +73,117 @@
   const S = await initShell();
   if (!S) return;
 
-  API.log("page_view", "Macro Files page");
+  API.log("page_view", "Macro Files repository");
 
   let FILES = [];
   const spLink = $("#spLink");
-  spLink.href = CFG.SHAREPOINT_FOLDER_URL;
+  if (spLink && CFG.SHAREPOINT_FOLDER_URL) {
+    spLink.href = CFG.SHAREPOINT_FOLDER_URL;
+  }
+
+  const getFileIcon = (name) => {
+    const ext = name.split(".").pop().toLowerCase();
+    if (ext === "xlsm") return "📊";
+    if (ext === "xlsb") return "⚡";
+    if (ext === "xlsx") return "📈";
+    if (ext === "bas")  return "📝";
+    return "📄";
+  };
 
   function draw() {
-    const q = $("#searchInput").value.toLowerCase();
-    let filtered = FILES.filter(f => f.name.toLowerCase().includes(q));
+    const q = ($("#searchInput").value || "").toLowerCase();
+    const extFilter = ($("#typeFilter").value || "").toLowerCase();
+
+    let filtered = FILES.filter(f => {
+      const name = (f.name || "").toLowerCase();
+      const by = (f.modifiedBy || "").toLowerCase();
+      const matchesText = !q || name.includes(q) || by.includes(q);
+      const matchesExt = !extFilter || name.endsWith(extFilter);
+      return matchesText && matchesExt;
+    });
 
     const sort = $("#sortSelect").value;
-    if (sort === "n") filtered.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sort === "s") filtered.sort((a, b) => b.size - a.size);
-    else filtered.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    if (sort === "n") {
+      filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    } else if (sort === "s") {
+      filtered.sort((a, b) => (Number(b.size) || 0) - (Number(a.size) || 0));
+    } else {
+      filtered.sort((a, b) => new Date(b.modified || 0) - new Date(a.modified || 0));
+    }
 
-    $("#fileTable").innerHTML = filtered.map(f => `
-      <tr>
-        <td>📊 ${esc(f.name)}</td>
-        <td>${fmtSize(f.size)}</td>
-        <td>${fmtDate(f.modified)}</td>
-        <td>${esc(f.modifiedBy || "—")}</td>
-        <td>
-          <a class="btn sm" href="${esc(f.downloadUrl)}" onclick="API.log('download','${esc(f.name)}')">
-            ⬇ Download
-          </a>
-        </td>
-      </tr>
-    `).join("");
+    $("#fileCount").textContent = `${filtered.length} of ${FILES.length} files matching`;
+
+    const tbody = $("#fileTable");
+    tbody.innerHTML = filtered.map(f => {
+      const ext = (f.name || "").split(".").pop().toUpperCase();
+      const safeUrl = esc(getDownloadUrl(f.downloadUrl));
+      return `
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px; font-weight: 600;">
+              <span style="font-size: 20px;">${getFileIcon(f.name)}</span>
+              <span>${esc(f.name)}</span>
+            </div>
+          </td>
+          <td><span class="pill">${ext}</span></td>
+          <td>${fmtSize(f.size)}</td>
+          <td>${fmtDate(f.modified)}</td>
+          <td>${esc(f.modifiedBy || "SharePoint")}</td>
+          <td style="text-align: right;">
+            <a class="btn sm dl-btn" href="${safeUrl}" download="${esc(f.name)}" data-name="${esc(f.name)}" target="_blank" rel="noopener">
+              ⬇ Download
+            </a>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    // Safe event listener delegation for download clicks
+    tbody.querySelectorAll(".dl-btn").forEach(btn => {
+      btn.onclick = () => {
+        const fname = btn.dataset.name;
+        API.log("download", fname);
+        showToast(`Downloading ${fname}…`, "info");
+      };
+    });
 
     const st = $("#statusMsg");
-    st.style.display = filtered.length ? "none" : "block";
     if (!filtered.length) {
+      st.style.display = "block";
       st.innerHTML = FILES.length
-        ? "No files match your search."
-        : "No macro files found in the SharePoint folder yet.";
+        ? "🔍 No files match your current search and filter criteria."
+        : "📂 No macro files found in the SharePoint library yet.";
+    } else {
+      st.style.display = "none";
     }
   }
 
   async function loadFiles() {
     const st = $("#statusMsg");
     st.style.display = "block";
-    st.innerHTML = '<span class="spinner"></span><p style="margin-top:12px;">Loading files…</p>';
+    st.innerHTML = '<span class="spinner"></span><p style="margin-top:14px;">Syncing with SharePoint…</p>';
 
     try {
       const result = await API.listFiles();
       FILES = result.files || [];
       draw();
-      $("#lastSync").textContent = "Last synced " + fmtDate(new Date());
+      $("#lastSync").textContent = "Last synced: " + fmtDate(new Date());
     } catch (err) {
       st.style.display = "block";
-      st.innerHTML = "❌ Could not load files from SharePoint. Please try again or contact admin.";
-      showToast("Failed to load files", "error");
+      st.innerHTML = `⚠️ Unable to load files from SharePoint: ${esc(err.message)}. <br><br><button class="btn sm alt" onclick="location.reload()">Retry Connection</button>`;
+      showToast("Could not sync SharePoint files", "error");
     }
   }
 
-  // Event listeners
   $("#searchInput").oninput = draw;
+  $("#typeFilter").onchange = draw;
   $("#sortSelect").onchange = draw;
   $("#refreshBtn").onclick = loadFiles;
 
-  // Initial load & auto-refresh
   loadFiles();
-  setInterval(loadFiles, CFG.POLL_SECONDS * 1000);
+  if (CFG.POLL_SECONDS) {
+    setInterval(loadFiles, CFG.POLL_SECONDS * 1000);
+  }
 })();
 </script>
 

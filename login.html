@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Sign in to SC Supply Chain Tool Hub — your centralized platform for macros, automation, and support.">
+  <meta name="description" content="Sign in to SC Supply Chain Tool Hub — Centralized platform for macros, automation, and support.">
   <title>Sign in · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
@@ -11,39 +11,51 @@
 <body>
 
 <div class="auth">
-  <!-- Left art panel (hidden on mobile) -->
+  <!-- Left art panel -->
   <section class="art">
     <span class="logo">Danfoss</span>
-    <h2>SC Supply Chain Tool Hub</h2>
-    <p>One place for macro files, automation bots, support tickets and the latest updates.</p>
-    <p style="font: italic 700 22px Georgia, serif; margin-top: 24px;">Engineering Tomorrow</p>
+    <h2>Supply Chain Tool Hub</h2>
+    <p>A unified digital workspace for macro repositories, automation bots, direct support ticketing, and operational announcements.</p>
+    <div style="margin-top: 32px;">
+      <p style="font: italic 700 22px Georgia, serif; color: #fff;">Engineering Tomorrow</p>
+      <p style="font-size: 13px; opacity: 0.8; margin-top: 4px;">Reliable · Automated · Sustainable</p>
+    </div>
   </section>
 
-  <!-- Login form -->
+  <!-- Login/Register Card -->
   <section class="box">
     <form id="loginForm">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="logo" style="color: var(--red); font-size: 32px; border: 0; padding: 0;">Danfoss</span>
+        <h3 style="margin-top: 6px; font-size: 20px;">Welcome Back</h3>
+        <p style="color: var(--mu); font-size: 13px;">Sign in with your enterprise credentials</p>
+      </div>
+
       <div class="tabs">
         <button type="button" class="on" data-mode="in">Sign in</button>
         <button type="button" data-mode="up">Create account</button>
       </div>
 
       <div id="nameWrap" hidden>
-        <label for="fullName">Full name</label>
-        <input id="fullName" autocomplete="name" placeholder="Enter your full name">
+        <label for="fullName">Full Name</label>
+        <input id="fullName" autocomplete="name" placeholder="First and last name">
       </div>
 
-      <label for="email">Work email</label>
+      <label for="email">Enterprise Email</label>
       <input id="email" type="email" required autocomplete="email" placeholder="you@danfoss.com">
 
       <label for="password">Password</label>
-      <input id="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Min. 8 characters">
+      <div style="position: relative;">
+        <input id="password" type="password" required minlength="8" autocomplete="current-password" placeholder="At least 8 characters" style="padding-right: 42px;">
+        <button type="button" id="togglePw" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--mu); cursor: pointer; font-size: 16px;" aria-label="Toggle password visibility">👁️</button>
+      </div>
 
-      <div style="margin-top: 20px;">
+      <div style="margin-top: 22px;">
         <button class="btn" style="width: 100%" id="submitBtn">Sign in</button>
       </div>
 
-      <p style="text-align: center; margin-top: 14px;">
-        <a href="#" id="forgotBtn" style="color: var(--red); font-size: 14px; font-weight: 500;">Forgot password?</a>
+      <p style="text-align: center; margin-top: 16px;">
+        <a href="#" id="forgotBtn" style="color: var(--red); font-size: 13px; font-weight: 600;">Forgot your password?</a>
       </p>
 
       <div class="msg" id="msgBox"></div>
@@ -62,10 +74,21 @@
     el.className = "msg " + type;
   };
 
-  // If already logged in, redirect
+  // If already authenticated, redirect to home
   if (Session.get()) {
     location.replace("home.html");
     return;
+  }
+
+  // Toggle password visibility
+  const toggleBtn = $("#togglePw");
+  const pwInput = $("#password");
+  if (toggleBtn && pwInput) {
+    toggleBtn.onclick = () => {
+      const isPw = pwInput.type === "password";
+      pwInput.type = isPw ? "text" : "password";
+      toggleBtn.textContent = isPw ? "🙈" : "👁️";
+    };
   }
 
   // Tab switching
@@ -80,43 +103,42 @@
     };
   });
 
-  // Form submit
+  // Form submission
   $("#loginForm").onsubmit = async e => {
     e.preventDefault();
     const email = $("#email").value.trim();
     const password = $("#password").value;
-    $("#submitBtn").disabled = true;
-    $("#submitBtn").innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>';
+    const btn = $("#submitBtn");
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span> Processing…';
 
     try {
       if (mode === "up") {
-        // Register
         const domain = CFG.ALLOWED_EMAIL_DOMAIN;
         if (domain && !email.toLowerCase().endsWith("@" + domain)) {
-          throw new Error("Use your @" + domain + " email address.");
+          throw new Error("Please register with your @" + domain + " email address.");
         }
         const fullName = $("#fullName").value.trim();
-        if (!fullName) throw new Error("Please enter your full name.");
+        if (!fullName) throw new Error("Please provide your full name.");
 
         const result = await API.register(email, password, fullName);
         if (result.error) throw new Error(result.error);
 
-        msg("Account created! You can now sign in.", "ok");
-        // Switch to sign-in tab
+        msg("Account created successfully! You can now sign in.", "ok");
         mode = "in";
         $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === "in"));
         $("#nameWrap").hidden = true;
-        $("#submitBtn").textContent = "Sign in";
+        btn.textContent = "Sign in";
       } else {
-        // Login
         const result = await API.login(email, password);
         if (result.error) throw new Error(result.error);
 
         Session.save({
-          token: result.token,
-          userId: result.userId,
-          email: result.email,
-          fullName: result.fullName,
+          token: result.token || "token_" + Date.now(),
+          userId: result.userId || email,
+          email: result.email || email,
+          fullName: result.fullName || email.split("@")[0],
           department: result.department || "",
           role: result.role || "user"
         });
@@ -125,17 +147,16 @@
       }
     } catch (err) {
       msg(err.message, "err");
+      btn.disabled = false;
+      btn.textContent = mode === "in" ? "Sign in" : "Create account";
     }
-
-    $("#submitBtn").disabled = false;
-    $("#submitBtn").textContent = mode === "in" ? "Sign in" : "Create account";
   };
 
   // Forgot password
   $("#forgotBtn").onclick = async e => {
     e.preventDefault();
     const email = $("#email").value.trim();
-    if (!email) return msg("Enter your email first.", "err");
+    if (!email) return msg("Please enter your email address first.", "err");
 
     try {
       const result = await API.resetPassword(email);

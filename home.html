@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="SC Supply Chain Tool Hub — your centralized platform for macros, automation bots, support tickets and updates.">
+  <meta name="description" content="Danfoss SC Supply Chain Tool Hub — Centralized platform for macros, automation bots, tickets, and updates.">
   <title>Home · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
@@ -13,39 +13,53 @@
 
   <!-- Hero Banner -->
   <section class="hero">
-    <div class="sl">Better Solutions<br>for a Sustainable Future</div>
-    <span class="logo" style="color: var(--red); border: 0; padding: 0; font-size: 38px;">Danfoss</span>
-    <h2>SC Supply Chain<br>Tool Hub</h2>
-    <p>Your centralized platform for automation, file management, support and latest updates.</p>
+    <div class="sl">Danfoss Supply Chain Digitalization</div>
+    <span class="logo" style="color: var(--red); border: 0; padding: 0; font-size: 40px; display: inline-block;">Danfoss</span>
+    <h2>Supply Chain<br>Tool Hub</h2>
+    <p>Your unified workspace for macro repositories, robotic process automations, operational ticketing, and system release announcements.</p>
     <div class="tag">Engineering Tomorrow</div>
   </section>
 
-  <!-- Quick-access tiles -->
+  <!-- Quick-access Navigation Tiles -->
   <div class="grid">
-    <a class="card tile" href="macros.html" id="tile-macros">
-      <div class="ic">📄</div>
+    <a class="tile" href="macros.html" id="tile-macros">
+      <div class="ic">📊</div>
       <h3>Macro Files</h3>
-      <p>Browse, search and download Excel macro files.</p>
-      <span class="go">➜</span>
+      <p>Browse, filter, and download validated Excel macro files from SharePoint.</p>
+      <div class="go">➜</div>
     </a>
-    <a class="card tile" href="bots.html" id="tile-bots">
+
+    <a class="tile" href="bots.html" id="tile-bots">
       <div class="ic">🤖</div>
       <h3>Automation Bots</h3>
-      <p>Launch bots and track execution results.</p>
-      <span class="go">➜</span>
+      <p>View active production bots, scheduled routines, and request custom bots.</p>
+      <div class="go">➜</div>
     </a>
-    <a class="card tile" href="ticket.html" id="tile-tickets">
+
+    <a class="tile" href="ticket.html" id="tile-tickets">
       <div class="ic">🎫</div>
       <h3>Raise a Ticket</h3>
-      <p>Submit support tickets and track status.</p>
-      <span class="go">➜</span>
+      <p>Report issues with macros or tools and track administrator resolutions.</p>
+      <div class="go">➜</div>
     </a>
-    <a class="card tile" href="updates.html" id="tile-updates">
+
+    <a class="tile" href="updates.html" id="tile-updates">
       <div class="ic">📣</div>
-      <h3>New Updates</h3>
-      <p>View announcements and new releases.</p>
-      <span class="go">➜</span>
+      <h3>Announcements</h3>
+      <p>Stay informed on new macro versions, maintenance windows, and features.</p>
+      <div class="go">➜</div>
     </a>
+  </div>
+
+  <!-- Operational Status Bar -->
+  <div class="card" style="margin-top: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: var(--input-bg);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="pill Active" style="font-size: 13px;">Connected</span>
+      <span style="font-size: 14px; font-weight: 600; color: var(--tx);">SharePoint Online Backend Active</span>
+    </div>
+    <div style="font-size: 13px; color: var(--mu);">
+      Supply Chain Automation & Continuous Improvement
+    </div>
   </div>
 
 </main>
@@ -56,10 +70,9 @@
   const S = await initShell();
   if (!S) return;
 
-  // Log page visit
-  API.log("page_view", "Home page");
+  API.log("page_view", "Home dashboard");
 
-  // Fetch updates count for bell badge
+  // Fetch announcements count for bell badge
   try {
     const result = await API.listUpdates();
     const weekAgo = Date.now() - 7 * 86400000;

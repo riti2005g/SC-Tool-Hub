@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Submit and track support tickets for the SC Tool Hub.">
+  <meta name="description" content="Submit and track support tickets for SC Tool Hub macros and automation bots.">
   <title>Raise a Ticket · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
@@ -11,14 +11,18 @@
 <body data-page="ticket">
 <main id="content">
 
-  <h2 style="margin-top: 0;">Raise a Ticket</h2>
+  <div style="margin-bottom: 24px;">
+    <h2 style="margin: 0 0 6px;">Support & Issue Ticketing</h2>
+    <p style="color: var(--mu); font-size: 14px; margin: 0;">Submit technical issues, macro file errors, or request new automation features.</p>
+  </div>
 
   <div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 18px;">Submit New Ticket</h3>
     <form id="ticketForm">
       <div class="row">
         <div>
           <label for="category">Category</label>
-          <select id="category">
+          <select id="category" required>
             <option>Macro file issue</option>
             <option>Automation bot request</option>
             <option>Access / permissions</option>
@@ -28,59 +32,68 @@
           </select>
         </div>
         <div>
-          <label for="priority">Priority</label>
-          <select id="priority">
-            <option>Low</option>
-            <option selected>Medium</option>
-            <option>High</option>
-            <option>Critical</option>
+          <label for="priority">Priority Level</label>
+          <select id="priority" required>
+            <option value="Low">Low — Minor inquiry or question</option>
+            <option value="Medium" selected>Medium — Standard operational request</option>
+            <option value="High">High — Work impeded / Urgent</option>
+            <option value="Critical">Critical — Full production outage</option>
           </select>
         </div>
       </div>
 
       <label for="subject">Subject</label>
-      <input id="subject" required maxlength="120" placeholder="Brief description of the issue">
+      <input id="subject" required maxlength="120" placeholder="Brief summary of the issue (e.g., Run-time error in Macro_v3)">
 
-      <label for="description">Description</label>
-      <textarea id="description" rows="5" required placeholder="What happened? Which file or tool? Steps to reproduce."></textarea>
+      <label for="description">Detailed Description</label>
+      <textarea id="description" rows="5" required placeholder="Describe what happened, error message, steps to reproduce, or workflow requirements..."></textarea>
 
       <div class="row">
         <div>
-          <label for="relatedItem">Related file / tool (optional)</label>
-          <input id="relatedItem" placeholder="e.g. Macro_v2.xlsm">
+          <label for="relatedItem">Related File / Tool (optional)</label>
+          <input id="relatedItem" placeholder="e.g. Inventory_Reconciler_v2.xlsm">
         </div>
         <div>
-          <label for="phone">Contact phone (optional)</label>
+          <label for="phone">Contact Phone / Extension (optional)</label>
           <input id="phone" type="tel" placeholder="+91 XXXXX XXXXX">
         </div>
       </div>
 
-      <div style="margin-top: 20px;">
-        <button class="btn" id="submitTicketBtn">🎫 Submit ticket</button>
+      <div style="margin-top: 22px;">
+        <button class="btn" id="submitTicketBtn">🎫 Submit Ticket to SharePoint</button>
       </div>
       <div class="msg" id="ticketMsg"></div>
     </form>
   </div>
 
-  <h3 style="margin-top: 28px;">My Tickets</h3>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 36px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h3 style="margin: 0;">My Submitted Tickets</h3>
+      <p style="color: var(--mu); font-size: 13px; margin: 4px 0 0;">Track status, resolutions, and administrator notes in real-time.</p>
+    </div>
+    <button class="btn alt sm" id="refreshTicketsBtn">↻ Refresh</button>
+  </div>
 
-  <div class="card">
+  <div class="card" style="padding: 0; overflow: hidden;">
     <div class="tw">
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>Ticket #</th>
             <th>Subject</th>
             <th>Category</th>
             <th>Priority</th>
             <th>Status</th>
-            <th>Raised</th>
+            <th>Submitted</th>
           </tr>
         </thead>
         <tbody id="ticketTable"></tbody>
       </table>
     </div>
-    <div class="empty" id="ticketEmpty">No tickets yet.</div>
+    <div class="empty" id="ticketEmpty">
+      <span class="spinner"></span>
+      <p style="margin-top: 12px;">Loading tickets from SharePoint…</p>
+    </div>
   </div>
 
 </main>
@@ -93,27 +106,59 @@
 
   API.log("page_view", "Tickets page");
 
+  // Pre-select category if passed in URL query
+  const urlParams = new URLSearchParams(window.location.search);
+  const catParam = urlParams.get("cat");
+  if (catParam) {
+    const catSelect = $("#category");
+    Array.from(catSelect.options).forEach(opt => {
+      if (opt.value.toLowerCase() === catParam.toLowerCase()) {
+        opt.selected = true;
+      }
+    });
+  }
+
   async function loadTickets() {
+    const emptyBox = $("#ticketEmpty");
+    emptyBox.style.display = "block";
+    emptyBox.innerHTML = '<span class="spinner"></span><p style="margin-top: 12px;">Syncing tickets…</p>';
+
     try {
       const result = await API.listTickets();
       const tickets = result.tickets || [];
-      $("#ticketTable").innerHTML = tickets.map(t => `
-        <tr>
-          <td>#${esc(t.TicketNo || t.Id)}</td>
-          <td>${esc(t.Title || t.Subject)}</td>
-          <td>${esc(t.Category)}</td>
-          <td>${esc(t.Priority)}</td>
-          <td><span class="pill ${esc(t.Status).replace(/ /g, '-')}">${esc(t.Status)}</span></td>
-          <td>${fmtDate(t.CreatedDate)}</td>
-        </tr>
-      `).join("");
-      $("#ticketEmpty").style.display = tickets.length ? "none" : "block";
+      const tbody = $("#ticketTable");
+
+      tbody.innerHTML = tickets.map(t => {
+        const ticketNum = esc(t.TicketNo || t.Id || "—");
+        const statusClass = esc(t.Status || "Open").replace(/\s+/g, "-");
+        return `
+          <tr>
+            <td><strong>#${ticketNum}</strong></td>
+            <td>
+              <div style="font-weight: 600; color: var(--tx);">${esc(t.Title || t.Subject || "No Title")}</div>
+              ${t.AdminNotes ? `<div style="font-size:12px;color:var(--mu);margin-top:2px;">💬 Admin: ${esc(t.AdminNotes)}</div>` : ""}
+            </td>
+            <td>${esc(t.Category || "General")}</td>
+            <td>${esc(t.Priority || "Medium")}</td>
+            <td><span class="pill ${statusClass}">${esc(t.Status || "Open")}</span></td>
+            <td>${fmtDate(t.CreatedDate)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      emptyBox.style.display = tickets.length ? "none" : "block";
+      if (!tickets.length) {
+        emptyBox.textContent = "🎫 You have not submitted any tickets yet.";
+      }
     } catch (err) {
+      emptyBox.style.display = "block";
+      emptyBox.textContent = "⚠️ Could not load tickets from SharePoint.";
       showToast("Failed to load tickets", "error");
     }
   }
 
   loadTickets();
+  $("#refreshTicketsBtn").onclick = loadTickets;
 
   $("#ticketForm").onsubmit = async e => {
     e.preventDefault();
@@ -123,13 +168,13 @@
 
     try {
       const result = await API.createTicket({
-        category:    $("#category").value,
-        priority:    $("#priority").value,
-        subject:     $("#subject").value.trim(),
-        description: $("#description").value.trim(),
-        relatedItem: $("#relatedItem").value.trim() || null,
-        phone:       $("#phone").value.trim() || null,
-        requesterName:  S.name,
+        category:      $("#category").value,
+        priority:      $("#priority").value,
+        subject:       $("#subject").value.trim(),
+        description:   $("#description").value.trim(),
+        relatedItem:   $("#relatedItem").value.trim() || null,
+        phone:         $("#phone").value.trim() || null,
+        requesterName: S.name,
         requesterEmail: S.user.email
       });
 
@@ -137,21 +182,21 @@
 
       const m = $("#ticketMsg");
       m.className = "msg ok";
-      m.textContent = "Ticket #" + (result.ticketNo || "—") + " submitted. Track it below.";
+      m.textContent = `Ticket #${result.ticketNo || "submitted"} has been created successfully. Tracking below.`;
 
-      API.log("ticket_create", "Ticket #" + (result.ticketNo || ""));
+      API.log("ticket_create", `Ticket #${result.ticketNo || ""}`);
       e.target.reset();
       loadTickets();
       showToast("Ticket submitted successfully!", "success");
     } catch (err) {
       const m = $("#ticketMsg");
       m.className = "msg err";
-      m.textContent = err.message;
+      m.textContent = err.message || "Failed to submit ticket.";
       showToast("Failed to submit ticket", "error");
     }
 
     btn.disabled = false;
-    btn.textContent = "🎫 Submit ticket";
+    btn.textContent = "🎫 Submit Ticket to SharePoint";
   };
 })();
 </script>

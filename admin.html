@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Admin panel for SC Tool Hub — manage users, files, tickets, and view activity logs.">
+  <meta name="description" content="Admin panel for SC Tool Hub — Manage SharePoint files, users, support tickets, and audit logs.">
   <title>Admin Panel · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
@@ -13,40 +13,46 @@
 
   <!-- Header -->
   <div class="admin-header">
-    <h2>🛡️ Admin Panel</h2>
-    <span style="color: var(--mu); font-size: 14px;" id="adminWelcome"></span>
+    <div>
+      <h2 style="margin: 0 0 6px;">🛡️ Enterprise Admin Panel</h2>
+      <p style="color: var(--mu); font-size: 14px; margin: 0;" id="adminWelcome">Administrative control center for SharePoint lists and document storage.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <a class="btn alt sm" id="spFolderLink" href="#" target="_blank" rel="noopener">📂 Open SharePoint Folder</a>
+      <a class="btn alt sm" id="spSiteLink" href="#" target="_blank" rel="noopener">🌐 SharePoint Site</a>
+    </div>
   </div>
 
-  <!-- Stats -->
+  <!-- Operational Statistics Grid -->
   <div class="stats-grid" id="statsGrid">
     <div class="stat-card">
       <div class="stat-icon">👥</div>
       <div class="stat-value" id="statUsers">—</div>
-      <div class="stat-label">Total Users</div>
+      <div class="stat-label">Registered Users</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">📄</div>
+      <div class="stat-icon">📊</div>
       <div class="stat-value" id="statFiles">—</div>
-      <div class="stat-label">Macro Files</div>
+      <div class="stat-label">Active Macro Files</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon">🎫</div>
       <div class="stat-value" id="statTickets">—</div>
-      <div class="stat-label">Open Tickets</div>
+      <div class="stat-label">Open Support Tickets</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">📊</div>
+      <div class="stat-icon">📈</div>
       <div class="stat-value" id="statLogs">—</div>
-      <div class="stat-label">Logs (7 days)</div>
+      <div class="stat-label">Audit Logs (7 Days)</div>
     </div>
   </div>
 
-  <!-- Tabs -->
+  <!-- Admin Navigation Tabs -->
   <div class="admin-tabs" id="adminTabs">
-    <button class="on" data-tab="upload">📤 Upload Files</button>
-    <button data-tab="users">👥 Users</button>
-    <button data-tab="tickets">🎫 Tickets</button>
-    <button data-tab="logs">📊 Activity Logs</button>
+    <button class="on" data-tab="upload">📤 Upload Macro Files</button>
+    <button data-tab="users">👥 User Governance</button>
+    <button data-tab="tickets">🎫 Ticket Management</button>
+    <button data-tab="logs">📊 Audit Activity Logs</button>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -54,20 +60,20 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="admin-section active" id="sec-upload">
     <div class="card">
-      <h3 style="margin-top: 0;">Upload Macro Files to SharePoint</h3>
-      <p style="color: var(--mu); margin-bottom: 16px;">
-        Drag & drop files or click to browse. Supported: .xlsm, .xlsb, .xlsx, .xls, .bas
+      <h3 style="margin-top: 0; margin-bottom: 8px;">Upload Macro Files to SharePoint</h3>
+      <p style="color: var(--mu); margin-bottom: 18px; font-size: 14px;">
+        Drag & drop files or click to browse. Files will be uploaded directly into the SharePoint Document Library. Supported formats: <strong>.xlsm, .xlsb, .xlsx, .xls, .bas</strong>
       </p>
 
       <div class="drop-zone" id="dropZone">
         <div class="drop-icon">📁</div>
-        <div class="drop-text">Drop files here or click to browse</div>
-        <div class="drop-hint">Max 25 MB per file</div>
-        <input type="file" id="fileInput" multiple accept=".xlsm,.xlsb,.xlsx,.xls,.bas">
+        <div class="drop-text">Drag & drop macro files here or click to browse</div>
+        <div class="drop-hint">Maximum file size: 25 MB per file</div>
+        <input type="file" id="fileInput" multiple accept=".xlsm,.xlsb,.xlsx,.xls,.bas" aria-label="Upload macro files">
       </div>
 
       <div class="upload-progress" id="uploadProgress">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 600;">
           <span id="uploadFileName">Uploading…</span>
           <span id="uploadPercent">0%</span>
         </div>
@@ -79,78 +85,82 @@
       <div id="uploadQueue" style="margin-top: 16px;"></div>
     </div>
 
-    <!-- Current Files -->
-    <div class="card" style="margin-top: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-        <h3 style="margin: 0;">Current Files in SharePoint</h3>
-        <button class="btn alt sm" id="refreshAdminFiles">↻ Refresh</button>
+    <!-- Current Files In SharePoint -->
+    <div class="card" style="margin-top: 24px; padding: 0; overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--bd); flex-wrap: wrap; gap: 10px;">
+        <h3 style="margin: 0; font-size: 18px;">Files Currently in SharePoint</h3>
+        <button class="btn alt sm" id="refreshAdminFiles">↻ Refresh File List</button>
       </div>
       <div class="tw">
         <table>
           <thead>
             <tr>
-              <th>File</th>
+              <th>File Name</th>
               <th>Size</th>
-              <th>Modified</th>
-              <th>Actions</th>
+              <th>Last Modified</th>
+              <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="adminFileTable"></tbody>
         </table>
       </div>
-      <div class="empty" id="adminFileStatus">Loading…</div>
+      <div class="empty" id="adminFileStatus">Loading SharePoint repository…</div>
     </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- TAB: Users -->
+  <!-- TAB: Users Governance -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="admin-section" id="sec-users">
-    <div class="card">
-      <div class="bar">
-        <input id="userSearch" type="search" placeholder="🔍 Search users by name or email…" aria-label="Search users">
-        <select id="userRoleFilter" style="width: auto;">
-          <option value="">All roles</option>
-          <option value="admin">Admin</option>
-          <option value="user">User</option>
-        </select>
-        <button class="btn alt sm" id="refreshUsers">↻ Refresh</button>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 18px 24px; border-bottom: 1px solid var(--bd);">
+        <div class="bar" style="margin-bottom: 0;">
+          <input id="userSearch" type="search" placeholder="🔍 Search users by name or email…" aria-label="Search users">
+          <select id="userRoleFilter" style="width: auto;">
+            <option value="">All Roles</option>
+            <option value="admin">Admins Only</option>
+            <option value="user">Standard Users Only</option>
+          </select>
+          <button class="btn alt sm" id="refreshUsers">↻ Refresh</button>
+        </div>
       </div>
       <div class="tw">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
+              <th>Full Name</th>
+              <th>Enterprise Email</th>
               <th>Department</th>
               <th>Role</th>
-              <th>Status</th>
+              <th>Account Status</th>
               <th>Last Login</th>
-              <th>Actions</th>
+              <th style="text-align: right;">Manage</th>
             </tr>
           </thead>
           <tbody id="userTable"></tbody>
         </table>
       </div>
-      <div class="empty" id="userEmpty">Loading users…</div>
+      <div class="empty" id="userEmpty">Loading users from SC_Users list…</div>
     </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- TAB: Tickets (Admin view) -->
+  <!-- TAB: Tickets Management -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="admin-section" id="sec-tickets">
-    <div class="card">
-      <div class="bar">
-        <input id="ticketSearch" type="search" placeholder="🔍 Search tickets…" aria-label="Search tickets">
-        <select id="ticketStatusFilter" style="width: auto;">
-          <option value="">All statuses</option>
-          <option value="Open">Open</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Resolved">Resolved</option>
-          <option value="Closed">Closed</option>
-        </select>
-        <button class="btn alt sm" id="refreshTickets">↻ Refresh</button>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 18px 24px; border-bottom: 1px solid var(--bd);">
+        <div class="bar" style="margin-bottom: 0;">
+          <input id="ticketSearch" type="search" placeholder="🔍 Search tickets by subject or requester…" aria-label="Search tickets">
+          <select id="ticketStatusFilter" style="width: auto;">
+            <option value="">All Statuses</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+          </select>
+          <button class="btn alt sm" id="refreshTickets">↻ Refresh</button>
+        </div>
       </div>
       <div class="tw">
         <table>
@@ -163,13 +173,13 @@
               <th>Priority</th>
               <th>Status</th>
               <th>Created</th>
-              <th>Actions</th>
+              <th style="text-align: right;">Update</th>
             </tr>
           </thead>
           <tbody id="adminTicketTable"></tbody>
         </table>
       </div>
-      <div class="empty" id="adminTicketEmpty">Loading tickets…</div>
+      <div class="empty" id="adminTicketEmpty">Loading tickets from SC_Tickets list…</div>
     </div>
   </div>
 
@@ -177,28 +187,29 @@
   <!-- TAB: Activity Logs -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="admin-section" id="sec-logs">
-    <div class="card">
-      <div class="bar">
-        <input id="logSearch" type="search" placeholder="🔍 Search logs…" aria-label="Search logs">
-        <select id="logActionFilter" style="width: auto;">
-          <option value="">All actions</option>
-          <option value="login">Login</option>
-          <option value="logout">Logout</option>
-          <option value="download">Download</option>
-          <option value="upload">Upload</option>
-          <option value="ticket_create">Ticket Create</option>
-          <option value="settings_change">Settings Change</option>
-          <option value="admin_action">Admin Action</option>
-          <option value="page_view">Page View</option>
-        </select>
-        <button class="btn alt sm" id="refreshLogs">↻ Refresh</button>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 18px 24px; border-bottom: 1px solid var(--bd);">
+        <div class="bar" style="margin-bottom: 0;">
+          <input id="logSearch" type="search" placeholder="🔍 Search logs by user or details…" aria-label="Search logs">
+          <select id="logActionFilter" style="width: auto;">
+            <option value="">All Actions</option>
+            <option value="login">Login</option>
+            <option value="logout">Logout</option>
+            <option value="download">File Download</option>
+            <option value="upload">File Upload</option>
+            <option value="ticket_create">Ticket Create</option>
+            <option value="admin_action">Admin Action</option>
+            <option value="page_view">Page View</option>
+          </select>
+          <button class="btn alt sm" id="refreshLogs">↻ Refresh</button>
+        </div>
       </div>
       <div class="tw">
         <table>
           <thead>
             <tr>
               <th>Timestamp</th>
-              <th>User</th>
+              <th>User Email</th>
               <th>Action</th>
               <th>Details</th>
               <th>Page</th>
@@ -207,7 +218,7 @@
           <tbody id="logTable"></tbody>
         </table>
       </div>
-      <div class="empty" id="logEmpty">Loading logs…</div>
+      <div class="empty" id="logEmpty">Loading audit trail from SC_AuditLogs list…</div>
     </div>
   </div>
 
@@ -216,20 +227,23 @@
 <!-- Ticket Status Modal -->
 <div class="modal-overlay" id="ticketModal">
   <div class="modal">
-    <h3>Update Ticket Status</h3>
+    <h3 style="margin-top: 0; margin-bottom: 16px;">Update Support Ticket Status</h3>
     <input type="hidden" id="modalTicketId">
-    <label for="modalStatus">New Status</label>
+    
+    <label for="modalStatus">Status</label>
     <select id="modalStatus">
-      <option>Open</option>
-      <option>In Progress</option>
-      <option>Resolved</option>
-      <option>Closed</option>
+      <option value="Open">Open</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Resolved">Resolved</option>
+      <option value="Closed">Closed</option>
     </select>
-    <label for="modalNotes">Admin Notes</label>
-    <textarea id="modalNotes" rows="3" placeholder="Optional notes…"></textarea>
+
+    <label for="modalNotes">Admin Resolution Notes</label>
+    <textarea id="modalNotes" rows="3" placeholder="Explain the resolution or notes for the user…"></textarea>
+
     <div class="modal-actions">
       <button class="btn alt" id="modalCancel">Cancel</button>
-      <button class="btn" id="modalSave">💾 Save</button>
+      <button class="btn" id="modalSave">💾 Save Changes</button>
     </div>
   </div>
 </div>
@@ -240,14 +254,24 @@
   const S = await initShell();
   if (!S) return;
 
-  // Only admins can access this page
+  // Strict client-side admin guard
   if (!S.isAdmin) {
-    document.body.innerHTML = '<div style="text-align:center;padding:80px 20px;"><h2>🚫 Access Denied</h2><p style="color:var(--mu);margin-top:12px;">You do not have admin privileges.</p><a class="btn" href="home.html" style="margin-top:20px;">Go Home</a></div>';
+    document.body.innerHTML = `
+      <div style="text-align: center; padding: 100px 20px;">
+        <h2 style="color: var(--red); font-size: 28px;">🚫 Access Restricted</h2>
+        <p style="color: var(--mu); margin-top: 12px; font-size: 16px;">This portal section requires Danfoss Supply Chain Administrator privileges.</p>
+        <a class="btn" href="home.html" style="margin-top: 24px;">Return to Home Dashboard</a>
+      </div>
+    `;
     return;
   }
 
   API.log("page_view", "Admin Panel");
-  $("#adminWelcome").textContent = `Welcome, ${S.name}`;
+  $("#adminWelcome").textContent = `Logged in as Administrator (${S.name})`;
+
+  // Configure SharePoint direct navigation links
+  if (CFG.SHAREPOINT_FOLDER_URL) $("#spFolderLink").href = CFG.SHAREPOINT_FOLDER_URL;
+  if (CFG.SHAREPOINT_SITE_URL) $("#spSiteLink").href = CFG.SHAREPOINT_SITE_URL;
 
   // ── Tab Switching ──────────────────────────────────────────
   const tabs = $$("#adminTabs button");
@@ -255,11 +279,12 @@
     btn.onclick = () => {
       tabs.forEach(b => b.classList.toggle("on", b === btn));
       $$(".admin-section").forEach(s => s.classList.remove("active"));
-      $(`#sec-${btn.dataset.tab}`).classList.add("active");
+      const targetSec = $(`#sec-${btn.dataset.tab}`);
+      if (targetSec) targetSec.classList.add("active");
     };
   });
 
-  // ── Stats ──────────────────────────────────────────────────
+  // ── Dashboard Statistics ───────────────────────────────────
   async function loadStats() {
     try {
       const s = await API.getStats();
@@ -267,63 +292,72 @@
       $("#statFiles").textContent = s.totalFiles ?? "—";
       $("#statTickets").textContent = s.openTickets ?? "—";
       $("#statLogs").textContent = s.recentLogs ?? "—";
-    } catch {}
+    } catch {
+      // Fallback display
+    }
   }
   loadStats();
 
-  // ── File Upload ────────────────────────────────────────────
+  // ── File Upload Handlers ───────────────────────────────────
   const dropZone = $("#dropZone");
   const fileInput = $("#fileInput");
   const allowedExts = [".xlsm", ".xlsb", ".xlsx", ".xls", ".bas"];
 
   ["dragover", "dragenter"].forEach(evt => {
-    dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener(evt, e => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
   });
   ["dragleave", "drop"].forEach(evt => {
-    dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove("dragover"); });
+    dropZone.addEventListener(evt, e => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+    });
   });
+
   dropZone.addEventListener("drop", e => {
-    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+    if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
   });
   fileInput.addEventListener("change", () => {
-    if (fileInput.files.length) handleFiles(fileInput.files);
+    if (fileInput.files?.length) handleFiles(fileInput.files);
   });
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList);
     const queue = $("#uploadQueue");
+    const progress = $("#uploadProgress");
 
     for (const file of files) {
       const ext = "." + file.name.split(".").pop().toLowerCase();
       if (!allowedExts.includes(ext)) {
-        queue.innerHTML += `<div class="msg err" style="display:block;margin-bottom:8px;">❌ ${esc(file.name)} — unsupported file type</div>`;
+        queue.innerHTML += `<div class="msg err" style="display:block;margin-bottom:8px;">❌ ${esc(file.name)}: Unsupported file type. Allowed: ${allowedExts.join(", ")}</div>`;
         continue;
       }
       if (file.size > 25 * 1024 * 1024) {
-        queue.innerHTML += `<div class="msg err" style="display:block;margin-bottom:8px;">❌ ${esc(file.name)} — exceeds 25 MB limit</div>`;
+        queue.innerHTML += `<div class="msg err" style="display:block;margin-bottom:8px;">❌ ${esc(file.name)}: File exceeds 25 MB size limit.</div>`;
         continue;
       }
 
-      // Show progress
-      const progress = $("#uploadProgress");
       progress.classList.add("active");
       $("#uploadFileName").textContent = file.name;
-      $("#uploadPercent").textContent = "Uploading…";
-      $("#progressFill").style.width = "30%";
+      $("#uploadPercent").textContent = "Uploading to SharePoint…";
+      $("#progressFill").style.width = "40%";
 
       try {
         await API.uploadFile(file);
         $("#progressFill").style.width = "100%";
-        $("#uploadPercent").textContent = "✅ Done";
-        queue.innerHTML += `<div class="msg ok" style="display:block;margin-bottom:8px;">✅ ${esc(file.name)} uploaded successfully</div>`;
+        $("#uploadPercent").textContent = "Completed ✅";
+        queue.innerHTML += `<div class="msg ok" style="display:block;margin-bottom:8px;">✅ ${esc(file.name)} uploaded to SharePoint successfully!</div>`;
         API.log("upload", file.name);
-        showToast(`${file.name} uploaded!`, "success");
+        showToast(`${file.name} uploaded successfully!`, "success");
       } catch (err) {
-        queue.innerHTML += `<div class="msg err" style="display:block;margin-bottom:8px;">❌ ${esc(file.name)} — upload failed</div>`;
+        $("#progressFill").style.width = "0%";
+        queue.innerHTML += `<div class="msg err" style="display:block;margin-bottom:8px;">❌ ${esc(file.name)}: Upload failed (${esc(err.message)})</div>`;
         showToast(`Failed to upload ${file.name}`, "error");
       }
 
-      setTimeout(() => { progress.classList.remove("active"); }, 1500);
+      setTimeout(() => { progress.classList.remove("active"); }, 2000);
     }
 
     fileInput.value = "";
@@ -331,153 +365,222 @@
     loadStats();
   }
 
-  // ── Admin File List ────────────────────────────────────────
+  // ── Admin Files List & Safe Deletion ───────────────────────
   let ADMIN_FILES = [];
   async function loadAdminFiles() {
+    const st = $("#adminFileStatus");
+    st.style.display = "block";
+    st.innerHTML = '<span class="spinner"></span><p style="margin-top:12px;">Syncing with SharePoint…</p>';
+
     try {
       const result = await API.listFiles();
       ADMIN_FILES = result.files || [];
       drawAdminFiles();
     } catch {
-      $("#adminFileStatus").textContent = "Failed to load files.";
-      $("#adminFileStatus").style.display = "block";
+      st.textContent = "⚠️ Failed to load files from SharePoint.";
+      st.style.display = "block";
     }
   }
 
   function drawAdminFiles() {
     const st = $("#adminFileStatus");
-    $("#adminFileTable").innerHTML = ADMIN_FILES.map(f => `
+    const tbody = $("#adminFileTable");
+
+    tbody.innerHTML = ADMIN_FILES.map(f => `
       <tr>
-        <td>📊 ${esc(f.name)}</td>
+        <td>
+          <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            <span>📊</span>
+            <span>${esc(f.name)}</span>
+          </div>
+        </td>
         <td>${fmtSize(f.size)}</td>
         <td>${fmtDate(f.modified)}</td>
-        <td>
-          <a class="btn sm" href="${esc(f.downloadUrl)}">⬇</a>
-          <button class="btn sm" style="background:#dc3545;" onclick="deleteFile('${esc(f.id || '')}','${esc(f.name)}')">🗑</button>
+        <td style="text-align: right;">
+          <a class="btn sm alt" href="${esc(getDownloadUrl(f.downloadUrl))}" target="_blank" rel="noopener" title="Download file">⬇</a>
+          <button class="btn sm del-file-btn" style="background:#dc2626;color:#fff;" data-id="${esc(f.id || '')}" data-name="${esc(f.name)}" title="Delete from SharePoint">🗑 Delete</button>
         </td>
       </tr>
     `).join("");
-    st.style.display = ADMIN_FILES.length ? "none" : "block";
-    if (!ADMIN_FILES.length) st.textContent = "No files in SharePoint yet.";
-  }
 
-  window.deleteFile = async (fileId, fileName) => {
-    if (!confirm(`Delete "${fileName}" from SharePoint?`)) return;
-    try {
-      await API.deleteFile(fileId);
-      API.log("admin_action", "Deleted file: " + fileName);
-      showToast(`${fileName} deleted`, "success");
-      loadAdminFiles();
-      loadStats();
-    } catch {
-      showToast("Failed to delete file", "error");
-    }
-  };
+    // Safe event delegation for delete action
+    tbody.querySelectorAll(".del-file-btn").forEach(btn => {
+      btn.onclick = async () => {
+        const fileId = btn.dataset.id;
+        const fileName = btn.dataset.name;
+        if (!confirm(`Are you sure you want to delete "${fileName}" from SharePoint?`)) return;
+
+        try {
+          await API.deleteFile(fileId, fileName);
+          API.log("admin_action", `Deleted file: ${fileName}`);
+          showToast(`${fileName} deleted`, "success");
+          loadAdminFiles();
+          loadStats();
+        } catch {
+          showToast("Failed to delete file", "error");
+        }
+      };
+    });
+
+    st.style.display = ADMIN_FILES.length ? "none" : "block";
+    if (!ADMIN_FILES.length) st.textContent = "No files found in SharePoint folder.";
+  }
 
   $("#refreshAdminFiles").onclick = loadAdminFiles;
   loadAdminFiles();
 
-  // ── Users ──────────────────────────────────────────────────
+  // ── User Management & Delegation ───────────────────────────
   let ALL_USERS = [];
   async function loadUsers() {
+    const uEmpty = $("#userEmpty");
+    uEmpty.style.display = "block";
+    uEmpty.innerHTML = '<span class="spinner"></span><p style="margin-top:12px;">Syncing users…</p>';
+
     try {
       const result = await API.listUsers();
       ALL_USERS = result.users || [];
       drawUsers();
     } catch {
-      $("#userEmpty").textContent = "Failed to load users.";
+      uEmpty.textContent = "⚠️ Failed to load users from SharePoint list.";
     }
   }
 
   function drawUsers() {
     const q = ($("#userSearch").value || "").toLowerCase();
     const role = $("#userRoleFilter").value;
+    const uEmpty = $("#userEmpty");
+
     let filtered = ALL_USERS
-      .filter(u => !q || u.FullName?.toLowerCase().includes(q) || u.Email?.toLowerCase().includes(q))
+      .filter(u => !q || (u.FullName || "").toLowerCase().includes(q) || (u.Email || "").toLowerCase().includes(q))
       .filter(u => !role || u.Role === role);
 
-    $("#userTable").innerHTML = filtered.map(u => `
+    const tbody = $("#userTable");
+    tbody.innerHTML = filtered.map(u => `
       <tr>
-        <td>${esc(u.FullName || "—")}</td>
+        <td style="font-weight: 600;">${esc(u.FullName || "—")}</td>
         <td>${esc(u.Email)}</td>
         <td>${esc(u.Department || "—")}</td>
-        <td><span class="pill">${esc(u.Role)}</span></td>
-        <td>${u.IsActive ? "✅ Active" : "❌ Inactive"}</td>
+        <td><span class="pill ${u.Role === "admin" ? "Open" : ""}">${esc(u.Role || "user")}</span></td>
+        <td><span class="pill ${u.IsActive ? "Active" : ""}">${u.IsActive ? "Active" : "Disabled"}</span></td>
         <td>${u.LastLogin ? fmtDate(u.LastLogin) : "Never"}</td>
-        <td>
-          <button class="btn sm alt" onclick="toggleRole('${esc(u.Title)}','${u.Role === "admin" ? "user" : "admin"}')">${u.Role === "admin" ? "⬇ Demote" : "⬆ Promote"}</button>
-          <button class="btn sm alt" onclick="toggleActive('${esc(u.Title)}',${!u.IsActive})">${u.IsActive ? "🚫 Disable" : "✅ Enable"}</button>
+        <td style="text-align: right;">
+          <button class="btn sm alt toggle-role-btn" data-userid="${esc(u.Title || u.Id)}" data-role="${u.Role === 'admin' ? 'user' : 'admin'}">
+            ${u.Role === "admin" ? "Demote" : "Promote"}
+          </button>
+          <button class="btn sm alt toggle-active-btn" data-userid="${esc(u.Title || u.Id)}" data-active="${!u.IsActive}">
+            ${u.IsActive ? "Disable" : "Enable"}
+          </button>
         </td>
       </tr>
     `).join("");
-    $("#userEmpty").style.display = filtered.length ? "none" : "block";
-    if (!filtered.length) $("#userEmpty").textContent = ALL_USERS.length ? "No users match." : "No users found.";
+
+    // Safe event listeners for user actions
+    tbody.querySelectorAll(".toggle-role-btn").forEach(btn => {
+      btn.onclick = async () => {
+        const userId = btn.dataset.userid;
+        const newRole = btn.dataset.role;
+        if (!confirm(`Change user ${userId} role to "${newRole}"?`)) return;
+        try {
+          await API.updateUser(userId, { role: newRole });
+          API.log("admin_action", `Changed user ${userId} role to ${newRole}`);
+          showToast("User role updated", "success");
+          loadUsers();
+        } catch {
+          showToast("Failed to update role", "error");
+        }
+      };
+    });
+
+    tbody.querySelectorAll(".toggle-active-btn").forEach(btn => {
+      btn.onclick = async () => {
+        const userId = btn.dataset.userid;
+        const active = btn.dataset.active === "true";
+        try {
+          await API.updateUser(userId, { isActive: active });
+          API.log("admin_action", `${active ? "Enabled" : "Disabled"} user ${userId}`);
+          showToast(active ? "User enabled" : "User disabled", "success");
+          loadUsers();
+        } catch {
+          showToast("Failed to update user", "error");
+        }
+      };
+    });
+
+    uEmpty.style.display = filtered.length ? "none" : "block";
+    if (!filtered.length) uEmpty.textContent = ALL_USERS.length ? "No users match your search." : "No users in database.";
   }
-
-  window.toggleRole = async (userId, newRole) => {
-    if (!confirm(`Change user role to "${newRole}"?`)) return;
-    try {
-      await API.updateUser(userId, { role: newRole });
-      API.log("admin_action", `Changed user ${userId} role to ${newRole}`);
-      showToast("Role updated", "success");
-      loadUsers();
-    } catch { showToast("Failed to update role", "error"); }
-  };
-
-  window.toggleActive = async (userId, active) => {
-    try {
-      await API.updateUser(userId, { isActive: active });
-      API.log("admin_action", `${active ? "Enabled" : "Disabled"} user ${userId}`);
-      showToast(active ? "User enabled" : "User disabled", "success");
-      loadUsers();
-    } catch { showToast("Failed to update user", "error"); }
-  };
 
   $("#userSearch").oninput = drawUsers;
   $("#userRoleFilter").onchange = drawUsers;
   $("#refreshUsers").onclick = loadUsers;
   loadUsers();
 
-  // ── Admin Tickets ──────────────────────────────────────────
+  // ── Admin Ticket Management ────────────────────────────────
   let ALL_TICKETS = [];
   async function loadAllTickets() {
+    const tEmpty = $("#adminTicketEmpty");
+    tEmpty.style.display = "block";
+    tEmpty.innerHTML = '<span class="spinner"></span><p style="margin-top:12px;">Syncing tickets…</p>';
+
     try {
       const result = await API.listAllTickets();
       ALL_TICKETS = result.tickets || [];
       drawAllTickets();
     } catch {
-      $("#adminTicketEmpty").textContent = "Failed to load tickets.";
+      tEmpty.textContent = "⚠️ Failed to load tickets from SharePoint.";
     }
   }
 
   function drawAllTickets() {
     const q = ($("#ticketSearch").value || "").toLowerCase();
     const status = $("#ticketStatusFilter").value;
+    const tEmpty = $("#adminTicketEmpty");
+
     let filtered = ALL_TICKETS
       .filter(t => !q || (t.Title || "").toLowerCase().includes(q) || (t.RequesterName || "").toLowerCase().includes(q))
       .filter(t => !status || t.Status === status);
 
-    $("#adminTicketTable").innerHTML = filtered.map(t => `
-      <tr>
-        <td>#${esc(t.TicketNo || t.Id)}</td>
-        <td>${esc(t.Title)}</td>
-        <td>${esc(t.RequesterName || "—")}<br><small style="color:var(--mu);">${esc(t.RequesterEmail || "")}</small></td>
-        <td>${esc(t.Category)}</td>
-        <td>${esc(t.Priority)}</td>
-        <td><span class="pill ${esc(t.Status).replace(/ /g, '-')}">${esc(t.Status)}</span></td>
-        <td>${fmtDate(t.CreatedDate)}</td>
-        <td><button class="btn sm" onclick="openTicketModal('${esc(t.Id || t.Title)}','${esc(t.Status)}')">✏️ Update</button></td>
-      </tr>
-    `).join("");
-    $("#adminTicketEmpty").style.display = filtered.length ? "none" : "block";
-  }
+    const tbody = $("#adminTicketTable");
+    tbody.innerHTML = filtered.map(t => {
+      const statusClass = esc(t.Status || "Open").replace(/\s+/g, "-");
+      const ticketId = esc(t.Id || t.Title);
+      return `
+        <tr>
+          <td><strong>#${esc(t.TicketNo || t.Id)}</strong></td>
+          <td>
+            <div style="font-weight: 600;">${esc(t.Title || "No Subject")}</div>
+            ${t.AdminNotes ? `<div style="font-size:12px;color:var(--mu);">Notes: ${esc(t.AdminNotes)}</div>` : ""}
+          </td>
+          <td>
+            ${esc(t.RequesterName || "—")}<br>
+            <small style="color:var(--mu);">${esc(t.RequesterEmail || "")}</small>
+          </td>
+          <td>${esc(t.Category || "General")}</td>
+          <td>${esc(t.Priority || "Medium")}</td>
+          <td><span class="pill ${statusClass}">${esc(t.Status || "Open")}</span></td>
+          <td>${fmtDate(t.CreatedDate)}</td>
+          <td style="text-align: right;">
+            <button class="btn sm open-modal-btn" data-id="${ticketId}" data-status="${esc(t.Status || 'Open')}">
+              ✏️ Manage
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
 
-  window.openTicketModal = (id, currentStatus) => {
-    $("#modalTicketId").value = id;
-    $("#modalStatus").value = currentStatus;
-    $("#modalNotes").value = "";
-    $("#ticketModal").classList.add("show");
-  };
+    // Safe event listener for modal open
+    tbody.querySelectorAll(".open-modal-btn").forEach(btn => {
+      btn.onclick = () => {
+        $("#modalTicketId").value = btn.dataset.id;
+        $("#modalStatus").value = btn.dataset.status;
+        $("#modalNotes").value = "";
+        $("#ticketModal").classList.add("show");
+      };
+    });
+
+    tEmpty.style.display = filtered.length ? "none" : "block";
+    if (!filtered.length) tEmpty.textContent = "No tickets match your filter.";
+  }
 
   $("#modalCancel").onclick = () => $("#ticketModal").classList.remove("show");
   $("#ticketModal").onclick = e => { if (e.target === $("#ticketModal")) $("#ticketModal").classList.remove("show"); };
@@ -489,8 +592,8 @@
 
     try {
       await API.updateTicketStatus(ticketId, newStatus, notes);
-      API.log("admin_action", `Updated ticket ${ticketId} to ${newStatus}`);
-      showToast("Ticket updated", "success");
+      API.log("admin_action", `Updated ticket ${ticketId} status to ${newStatus}`);
+      showToast("Ticket updated successfully", "success");
       $("#ticketModal").classList.remove("show");
       loadAllTickets();
       loadStats();
@@ -507,33 +610,41 @@
   // ── Activity Logs ──────────────────────────────────────────
   let ALL_LOGS = [];
   async function loadLogs() {
+    const lEmpty = $("#logEmpty");
+    lEmpty.style.display = "block";
+    lEmpty.innerHTML = '<span class="spinner"></span><p style="margin-top:12px;">Syncing activity logs…</p>';
+
     try {
       const result = await API.getLogs();
       ALL_LOGS = result.logs || [];
       drawLogs();
     } catch {
-      $("#logEmpty").textContent = "Failed to load logs.";
+      lEmpty.textContent = "⚠️ Failed to load activity logs.";
     }
   }
 
   function drawLogs() {
     const q = ($("#logSearch").value || "").toLowerCase();
     const action = $("#logActionFilter").value;
+    const lEmpty = $("#logEmpty");
+
     let filtered = ALL_LOGS
       .filter(l => !q || (l.UserEmail || "").toLowerCase().includes(q) || (l.Details || "").toLowerCase().includes(q))
       .filter(l => !action || l.Action === action);
 
-    $("#logTable").innerHTML = filtered.slice(0, 200).map(l => `
+    const tbody = $("#logTable");
+    tbody.innerHTML = filtered.slice(0, 250).map(l => `
       <tr>
         <td>${fmtDate(l.Timestamp)}</td>
-        <td>${esc(l.UserEmail || "—")}</td>
-        <td><span class="pill">${esc(l.Action)}</span></td>
-        <td style="white-space:normal;max-width:300px;">${esc(l.Details || "—")}</td>
-        <td>${esc(l.PageUrl || "—")}</td>
+        <td style="font-weight: 500;">${esc(l.UserEmail || "—")}</td>
+        <td><span class="pill">${esc(l.Action || "general")}</span></td>
+        <td style="white-space: normal; max-width: 320px;">${esc(l.Details || "—")}</td>
+        <td><code style="font-size:12px;color:var(--mu);">${esc(l.PageUrl || "—")}</code></td>
       </tr>
     `).join("");
-    $("#logEmpty").style.display = filtered.length ? "none" : "block";
-    if (!filtered.length) $("#logEmpty").textContent = ALL_LOGS.length ? "No logs match your filter." : "No activity logs found.";
+
+    lEmpty.style.display = filtered.length ? "none" : "block";
+    if (!filtered.length) lEmpty.textContent = ALL_LOGS.length ? "No logs match your filter." : "No activity logs recorded yet.";
   }
 
   $("#logSearch").oninput = drawLogs;
