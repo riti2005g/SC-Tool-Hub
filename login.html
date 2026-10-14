@@ -123,7 +123,10 @@
         if (!fullName) throw new Error("Please provide your full name.");
 
         const result = await API.register(email, password, fullName);
-        if (result.error) throw new Error(result.error);
+        if (result.error) {
+          const errText = typeof result.error === "object" ? (result.error.message || JSON.stringify(result.error)) : result.error;
+          throw new Error(errText);
+        }
 
         msg("Account created successfully! You can now sign in.", "ok");
         mode = "in";
@@ -132,7 +135,10 @@
         btn.textContent = "Sign in";
       } else {
         const result = await API.login(email, password);
-        if (result.error) throw new Error(result.error);
+        if (result.error) {
+          const errText = typeof result.error === "object" ? (result.error.message || JSON.stringify(result.error)) : result.error;
+          throw new Error(errText);
+        }
 
         Session.save({
           token: result.token || "token_" + Date.now(),

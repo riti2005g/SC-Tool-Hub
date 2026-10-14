@@ -128,8 +128,14 @@ const API = {
         let errMessage = `Server returned HTTP ${res.status}`;
         try {
           const errJson = await res.json();
-          if (errJson && (errJson.error || errJson.message)) {
-            errMessage = errJson.error || errJson.message;
+          if (errJson) {
+            if (typeof errJson.error === "string") {
+              errMessage = errJson.error;
+            } else if (errJson.error && typeof errJson.error === "object") {
+              errMessage = errJson.error.message || errJson.error.code || JSON.stringify(errJson.error);
+            } else if (errJson.message) {
+              errMessage = typeof errJson.message === "string" ? errJson.message : JSON.stringify(errJson.message);
+            }
           }
         } catch {
           const errText = await res.text();
