@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sign in to SC Supply Chain Tool Hub — your centralized platform for macros, automation, and support.">
+  <title>Sign in · SC Tool Hub</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/config.js"></script>
+</head>
+<body>
+
+<div class="auth">
+  <!-- Left art panel (hidden on mobile) -->
+  <section class="art">
+    <span class="logo">Danfoss</span>
+    <h2>SC Supply Chain Tool Hub</h2>
+    <p>One place for macro files, automation bots, support tickets and the latest updates.</p>
+    <p style="font: italic 700 22px Georgia, serif; margin-top: 24px;">Engineering Tomorrow</p>
+  </section>
+
+  <!-- Login form -->
+  <section class="box">
+    <form id="loginForm">
+      <div class="tabs">
+        <button type="button" class="on" data-mode="in">Sign in</button>
+        <button type="button" data-mode="up">Create account</button>
+      </div>
+
+      <div id="nameWrap" hidden>
+        <label for="fullName">Full name</label>
+        <input id="fullName" autocomplete="name" placeholder="Enter your full name">
+      </div>
+
+      <label for="email">Work email</label>
+      <input id="email" type="email" required autocomplete="email" placeholder="you@danfoss.com">
+
+      <label for="password">Password</label>
+      <input id="password" type="password" required minlength="8" autocomplete="current-password" placeholder="Min. 8 characters">
+
+      <div style="margin-top: 20px;">
+        <button class="btn" style="width: 100%" id="submitBtn">Sign in</button>
+      </div>
+
+      <p style="text-align: center; margin-top: 14px;">
+        <a href="#" id="forgotBtn" style="color: var(--red); font-size: 14px; font-weight: 500;">Forgot password?</a>
+      </p>
+
+      <div class="msg" id="msgBox"></div>
+    </form>
+  </section>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+(function() {
+  let mode = "in";
+
+  const msg = (text, type) => {
+    const el = $("#msgBox");
+    el.textContent = text;
+    el.className = "msg " + type;
+  };
+
+  // If already logged in, redirect
+  if (Session.get()) {
+    location.replace("home.html");
+    return;
+  }
+
+  // Tab switching
+  $$(".tabs button").forEach(btn => {
+    btn.onclick = () => {
+      mode = btn.dataset.mode;
+      $$(".tabs button").forEach(b => b.classList.toggle("on", b === btn));
+      $("#nameWrap").hidden = mode === "in";
+      $("#fullName").required = mode === "up";
+      $("#submitBtn").textContent = mode === "in" ? "Sign in" : "Create account";
+      $("#msgBox").className = "msg";
+    };
+  });
+
+  // Form submit
+  $("#loginForm").onsubmit = async e => {
+    e.preventDefault();
+    const email = $("#email").value.trim();
+    const password = $("#password").value;
+    $("#submitBtn").disabled = true;
+    $("#submitBtn").innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>';
+
+    try {
+      if (mode === "up") {
+        // Register
+        const domain = CFG.ALLOWED_EMAIL_DOMAIN;
+        if (domain && !email.toLowerCase().endsWith("@" + domain)) {
+          throw new Error("Use your @" + domain + " email address.");
+        }
+        const fullName = $("#fullName").value.trim();
+        if (!fullName) throw new Error("Please enter your full name.");
+
+        const result = await API.register(email, password, fullName);
+        if (result.error) throw new Error(result.error);
+
+        msg("Account created! You can now sign in.", "ok");
+        // Switch to sign-in tab
+        mode = "in";
+        $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === "in"));
+        $("#nameWrap").hidden = true;
+        $("#submitBtn").textContent = "Sign in";
+      } else {
+        // Login
+        const result = await API.login(email, password);
+        if (result.error) throw new Error(result.error);
+
+        Session.save({
+          token: result.token,
+          userId: result.userId,
+          email: result.email,
+          fullName: result.fullName,
+          department: result.department || "",
+          role: result.role || "user"
+        });
+
+        location.replace("home.html");
+      }
+    } catch (err) {
+      msg(err.message, "err");
+    }
+
+    $("#submitBtn").disabled = false;
+    $("#submitBtn").textContent = mode === "in" ? "Sign in" : "Create account";
+  };
+
+  // Forgot password
+  $("#forgotBtn").onclick = async e => {
+    e.preventDefault();
+    const email = $("#email").value.trim();
+    if (!email) return msg("Enter your email first.", "err");
+
+    try {
+      const result = await API.resetPassword(email);
+      msg(result.error ? result.error : "Reset instructions sent to your email.", result.error ? "err" : "ok");
+    } catch (err) {
+      msg(err.message, "err");
+    }
+  };
+})();
+</script>
+
+</body>
+</html>

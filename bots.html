@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Automation bots for SC Tool Hub — launch bots and track execution.">
+  <title>Automation Bots · SC Tool Hub</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/config.js"></script>
+</head>
+<body data-page="bots">
+<main id="content">
+
+  <div class="card dev">
+    <div class="ic">🛠️</div>
+    <h2>Automation Bots are under development</h2>
+    <p style="color: var(--mu); margin-top: 8px; max-width: 440px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+      Bot launching and execution tracking will appear here soon. In the meantime, you can request a custom bot through our ticketing system.
+    </p>
+    <a class="btn" href="ticket.html" style="margin-top: 20px;">🎫 Request a bot</a>
+  </div>
+
+</main>
+
+<script src="assets/js/app.js"></script>
+<script>
+(async () => {
+  const S = await initShell();
+  if (!S) return;
+  API.log("page_view", "Automation Bots page");
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse, search, and download Excel macro files from SharePoint.">
+  <title>Macro Files · SC Tool Hub</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/config.js"></script>
+</head>
+<body data-page="macros">
+<main id="content">
+
+  <h2 style="margin-top: 0;">Macro Files</h2>
+
+  <div class="bar">
+    <input id="searchInput" type="search" placeholder="🔍 Search macro files..." aria-label="Search macro files">
+    <select id="sortSelect" style="width: auto;">
+      <option value="d">Newest first</option>
+      <option value="n">Name A–Z</option>
+      <option value="s">Size ↓</option>
+    </select>
+    <button class="btn alt" id="refreshBtn">↻ Refresh</button>
+    <a class="btn" id="spLink" href="#" target="_blank" rel="noopener">📂 Open in SharePoint</a>
+  </div>
+
+  <div class="card">
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Size</th>
+            <th>Modified</th>
+            <th>Modified by</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="fileTable"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="statusMsg">
+      <span class="spinner"></span>
+      <p style="margin-top: 12px;">Loading files from SharePoint…</p>
+    </div>
+  </div>
+
+  <p style="color: var(--mu); font-size: 13px; margin-top: 8px;" id="lastSync"></p>
+
+</main>
+
+<script src="assets/js/app.js"></script>
+<script>
+(async () => {
+  const S = await initShell();
+  if (!S) return;
+
+  API.log("page_view", "Macro Files page");
+
+  let FILES = [];
+  const spLink = $("#spLink");
+  spLink.href = CFG.SHAREPOINT_FOLDER_URL;
+
+  function draw() {
+    const q = $("#searchInput").value.toLowerCase();
+    let filtered = FILES.filter(f => f.name.toLowerCase().includes(q));
+
+    const sort = $("#sortSelect").value;
+    if (sort === "n") filtered.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === "s") filtered.sort((a, b) => b.size - a.size);
+    else filtered.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+
+    $("#fileTable").innerHTML = filtered.map(f => `
+      <tr>
+        <td>📊 ${esc(f.name)}</td>
+        <td>${fmtSize(f.size)}</td>
+        <td>${fmtDate(f.modified)}</td>
+        <td>${esc(f.modifiedBy || "—")}</td>
+        <td>
+          <a class="btn sm" href="${esc(f.downloadUrl)}" onclick="API.log('download','${esc(f.name)}')">
+            ⬇ Download
+          </a>
+        </td>
+      </tr>
+    `).join("");
+
+    const st = $("#statusMsg");
+    st.style.display = filtered.length ? "none" : "block";
+    if (!filtered.length) {
+      st.innerHTML = FILES.length
+        ? "No files match your search."
+        : "No macro files found in the SharePoint folder yet.";
+    }
+  }
+
+  async function loadFiles() {
+    const st = $("#statusMsg");
+    st.style.display = "block";
+    st.innerHTML = '<span class="spinner"></span><p style="margin-top:12px;">Loading files…</p>';
+
+    try {
+      const result = await API.listFiles();
+      FILES = result.files || [];
+      draw();
+      $("#lastSync").textContent = "Last synced " + fmtDate(new Date());
+    } catch (err) {
+      st.style.display = "block";
+      st.innerHTML = "❌ Could not load files from SharePoint. Please try again or contact admin.";
+      showToast("Failed to load files", "error");
+    }
+  }
+
+  // Event listeners
+  $("#searchInput").oninput = draw;
+  $("#sortSelect").onchange = draw;
+  $("#refreshBtn").onclick = loadFiles;
+
+  // Initial load & auto-refresh
+  loadFiles();
+  setInterval(loadFiles, CFG.POLL_SECONDS * 1000);
+})();
+</script>
+
+</body>
+</html>

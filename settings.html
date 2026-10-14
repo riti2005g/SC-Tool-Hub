@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Account settings for SC Tool Hub — update profile, password, and appearance.">
+  <title>Settings · SC Tool Hub</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/config.js"></script>
+</head>
+<body data-page="settings">
+<main id="content">
+
+  <h2 style="margin-top: 0;">Settings</h2>
+
+  <div class="row">
+    <!-- Profile -->
+    <div class="card">
+      <h3 style="margin-top: 0;">👤 Profile</h3>
+      <form id="profileForm">
+        <label for="fullNameInput">Full name</label>
+        <input id="fullNameInput" required placeholder="Your full name">
+
+        <label for="deptInput">Department / team</label>
+        <input id="deptInput" placeholder="e.g. Supply Chain">
+
+        <label for="emailDisplay">Email</label>
+        <input id="emailDisplay" disabled>
+
+        <div style="margin-top: 16px;">
+          <button class="btn">💾 Save changes</button>
+        </div>
+        <div class="msg" id="profileMsg"></div>
+      </form>
+    </div>
+
+    <!-- Password & Appearance -->
+    <div class="card">
+      <h3 style="margin-top: 0;">🔒 Password</h3>
+      <form id="passwordForm">
+        <label for="newPw">New password</label>
+        <input id="newPw" type="password" minlength="8" required autocomplete="new-password" placeholder="Min. 8 characters">
+
+        <label for="confirmPw">Confirm password</label>
+        <input id="confirmPw" type="password" required autocomplete="new-password" placeholder="Re-enter password">
+
+        <div style="margin-top: 16px;">
+          <button class="btn">🔄 Update password</button>
+        </div>
+        <div class="msg" id="pwMsg"></div>
+      </form>
+
+      <h3 style="margin-top: 28px;">🎨 Appearance</h3>
+      <label for="themeSelect">Theme</label>
+      <select id="themeSelect">
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+      </select>
+    </div>
+  </div>
+
+</main>
+
+<script src="assets/js/app.js"></script>
+<script>
+(async () => {
+  const S = await initShell();
+  if (!S) return;
+
+  API.log("page_view", "Settings page");
+
+  const say = (sel, text, isError) => {
+    const m = $(sel);
+    m.textContent = text;
+    m.className = "msg " + (isError ? "err" : "ok");
+  };
+
+  // Populate current values
+  $("#fullNameInput").value = S.profile?.full_name || "";
+  $("#deptInput").value = S.profile?.department || "";
+  $("#emailDisplay").value = S.user.email;
+  $("#themeSelect").value = localStorage.getItem("theme") || "light";
+
+  // Theme toggle
+  $("#themeSelect").onchange = e => {
+    const theme = e.target.value;
+    localStorage.setItem("theme", theme);
+    document.documentElement.dataset.theme = theme;
+    API.log("settings_change", "Theme changed to " + theme);
+    showToast("Theme updated!", "success");
+  };
+
+  // Profile save
+  $("#profileForm").onsubmit = async e => {
+    e.preventDefault();
+    const fullName = $("#fullNameInput").value.trim();
+    const department = $("#deptInput").value.trim();
+
+    try {
+      const result = await API.updateProfile(fullName, department);
+      if (result.error) throw new Error(result.error);
+
+      // Update session
+      const session = Session.get();
+      if (session) {
+        session.fullName = fullName;
+        session.department = department;
+        Session.save(session);
+      }
+
+      say("#profileMsg", "Profile saved.", false);
+      API.log("settings_change", "Profile updated");
+      showToast("Profile saved!", "success");
+    } catch (err) {
+      say("#profileMsg", err.message, true);
+    }
+  };
+
+  // Password update
+  $("#passwordForm").onsubmit = async e => {
+    e.preventDefault();
+    if ($("#newPw").value !== $("#confirmPw").value) {
+      return say("#pwMsg", "Passwords do not match.", true);
+    }
+
+    try {
+      const result = await API.changePassword($("#newPw").value);
+      if (result.error) throw new Error(result.error);
+
+      say("#pwMsg", "Password updated.", false);
+      API.log("settings_change", "Password changed");
+      e.target.reset();
+      showToast("Password updated!", "success");
+    } catch (err) {
+      say("#pwMsg", err.message, true);
+    }
+  };
+})();
+</script>
+
+</body>
+</html>
