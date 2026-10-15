@@ -175,7 +175,16 @@ const API = {
 
   // Files Operations
   async listFiles() {
-    return this.call(CFG.FLOW_FILES_URL, "list");
+    const res = await this.call(CFG.FLOW_FILES_URL, "list");
+    let raw = res.files;
+    if (typeof raw === "string") {
+      try { raw = JSON.parse(raw); } catch {}
+    }
+    if (Array.isArray(raw)) return { ...res, files: raw };
+    if (raw && Array.isArray(raw.results)) return { ...res, files: raw.results };
+    if (raw && raw.d && Array.isArray(raw.d.results)) return { ...res, files: raw.d.results };
+    if (Array.isArray(res.value)) return { ...res, files: res.value };
+    return { ...res, files: [] };
   },
   async uploadFile(file) {
     const session = Session.get();

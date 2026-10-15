@@ -94,9 +94,10 @@
     const q = ($("#searchInput").value || "").toLowerCase();
     const extFilter = ($("#typeFilter").value || "").toLowerCase();
 
+    if (!Array.isArray(FILES)) FILES = [];
     let filtered = FILES.filter(f => {
-      const name = (f.name || "").toLowerCase();
-      const by = (f.modifiedBy || "").toLowerCase();
+      const name = (f.name || f.Name || f.FileLeafRef || "").toLowerCase();
+      const by = (f.modifiedBy || f.Editor || "").toLowerCase();
       const matchesText = !q || name.includes(q) || by.includes(q);
       const matchesExt = !extFilter || name.endsWith(extFilter);
       return matchesText && matchesExt;
@@ -115,22 +116,27 @@
 
     const tbody = $("#fileTable");
     tbody.innerHTML = filtered.map(f => {
-      const ext = (f.name || "").split(".").pop().toUpperCase();
-      const safeUrl = esc(getDownloadUrl(f.downloadUrl));
+      const fileName = f.name || f.Name || f.FileLeafRef || "Unnamed File";
+      const fileUrl = f.downloadUrl || f.ServerRelativeUrl || f.__metadata?.media_src || f.__metadata?.uri || "#";
+      const fileSize = f.size || f.Length || f.File_x0020_Size || 0;
+      const fileModified = f.modified || f.TimeLastModified || f.Modified;
+      const fileBy = f.modifiedBy || f.ModifiedBy?.Title || f.Editor || "SharePoint";
+      const ext = fileName.split(".").pop().toUpperCase();
+      const safeUrl = esc(getDownloadUrl(fileUrl));
       return `
         <tr>
           <td>
             <div style="display: flex; align-items: center; gap: 10px; font-weight: 600;">
-              <span style="font-size: 20px;">${getFileIcon(f.name)}</span>
-              <span>${esc(f.name)}</span>
+              <span style="font-size: 20px;">${getFileIcon(fileName)}</span>
+              <span>${esc(fileName)}</span>
             </div>
           </td>
           <td><span class="pill">${ext}</span></td>
-          <td>${fmtSize(f.size)}</td>
-          <td>${fmtDate(f.modified)}</td>
-          <td>${esc(f.modifiedBy || "SharePoint")}</td>
+          <td>${fmtSize(fileSize)}</td>
+          <td>${fmtDate(fileModified)}</td>
+          <td>${esc(fileBy)}</td>
           <td style="text-align: right;">
-            <a class="btn sm dl-btn" href="${safeUrl}" download="${esc(f.name)}" data-name="${esc(f.name)}" target="_blank" rel="noopener">
+            <a class="btn sm dl-btn" href="${safeUrl}" download="${esc(fileName)}" data-name="${esc(fileName)}" target="_blank" rel="noopener">
               ⬇ Download
             </a>
           </td>

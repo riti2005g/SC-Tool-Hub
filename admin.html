@@ -385,23 +385,30 @@
   function drawAdminFiles() {
     const st = $("#adminFileStatus");
     const tbody = $("#adminFileTable");
+    if (!Array.isArray(ADMIN_FILES)) ADMIN_FILES = [];
 
-    tbody.innerHTML = ADMIN_FILES.map(f => `
-      <tr>
-        <td>
-          <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
-            <span>📊</span>
-            <span>${esc(f.name)}</span>
-          </div>
-        </td>
-        <td>${fmtSize(f.size)}</td>
-        <td>${fmtDate(f.modified)}</td>
-        <td style="text-align: right;">
-          <a class="btn sm alt" href="${esc(getDownloadUrl(f.downloadUrl))}" target="_blank" rel="noopener" title="Download file">⬇</a>
-          <button class="btn sm del-file-btn" style="background:#dc2626;color:#fff;" data-id="${esc(f.id || '')}" data-name="${esc(f.name)}" title="Delete from SharePoint">🗑 Delete</button>
-        </td>
-      </tr>
-    `).join("");
+    tbody.innerHTML = ADMIN_FILES.map(f => {
+      const fileName = f.name || f.Name || f.FileLeafRef || "Unnamed File";
+      const fileUrl = f.downloadUrl || f.ServerRelativeUrl || f.__metadata?.media_src || f.__metadata?.uri || "#";
+      const fileSize = f.size || f.Length || f.File_x0020_Size || 0;
+      const fileModified = f.modified || f.TimeLastModified || f.Modified;
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
+              <span>📊</span>
+              <span>${esc(fileName)}</span>
+            </div>
+          </td>
+          <td>${fmtSize(fileSize)}</td>
+          <td>${fmtDate(fileModified)}</td>
+          <td style="text-align: right;">
+            <a class="btn sm alt" href="${esc(getDownloadUrl(fileUrl))}" target="_blank" rel="noopener" title="Download file">⬇</a>
+            <button class="btn sm del-file-btn" style="background:#dc2626;color:#fff;" data-id="${esc(f.id || f.UniqueId || '')}" data-name="${esc(fileName)}" title="Delete from SharePoint">🗑 Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
 
     // Safe event delegation for delete action
     tbody.querySelectorAll(".del-file-btn").forEach(btn => {
