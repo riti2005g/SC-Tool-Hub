@@ -140,13 +140,27 @@
           throw new Error(errText);
         }
 
+        // Defensively handle all SharePoint column name variants:
+        // SharePoint returns PascalCase (Role, IsActive), Flow may return camelCase
+        const resolvedRole = result.role || result.Role || "user";
+        const resolvedIsActive = result.isActive !== undefined ? result.isActive
+          : result.IsActive !== undefined ? result.IsActive
+          : result.Active !== undefined ? result.Active
+          : true; // default to active if field missing
+
+        // Block login if account is deactivated
+        if (resolvedIsActive === false || resolvedIsActive === "No" || resolvedIsActive === 0) {
+          throw new Error("Your account has been deactivated. Please contact an administrator.");
+        }
+
         Session.save({
           token: result.token || "token_" + Date.now(),
-          userId: result.userId || email,
-          email: result.email || email,
-          fullName: result.fullName || email.split("@")[0],
-          department: result.department || "",
-          role: result.role || "user"
+          userId: result.userId || result.id || result.ID || email,
+          email: result.email || result.Email || email,
+          fullName: result.fullName || result.FullName || result.Title || email.split("@")[0],
+          department: result.department || result.Department || "",
+          role: resolvedRole,
+          isActive: resolvedIsActive
         });
 
         location.replace("home.html");

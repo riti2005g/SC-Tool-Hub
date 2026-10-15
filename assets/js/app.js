@@ -161,7 +161,14 @@ const API = {
     return this.call(CFG.FLOW_AUTH_URL, "login", { email, password });
   },
   async register(email, password, fullName) {
-    return this.call(CFG.FLOW_AUTH_URL, "register", { email, password, fullName });
+    // Explicitly send role and isActive so Power Automate can write them to SharePoint
+    return this.call(CFG.FLOW_AUTH_URL, "register", {
+      email,
+      password,
+      fullName,
+      role: "user",
+      isActive: true
+    });
   },
   async resetPassword(email) {
     return this.call(CFG.FLOW_AUTH_URL, "resetPassword", { email });
