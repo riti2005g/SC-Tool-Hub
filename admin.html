@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="
-  anel for SC Tool Hub — Manage SharePoint files, users, support tickets, and audit logs.">
+  <meta name="description" content="Admin panel for SC Tool Hub — Manage SharePoint files, users, support tickets, and audit logs.">
   <title>Admin Panel · SC Tool Hub</title>
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/config.js"></script>
@@ -446,10 +445,9 @@
 
     try {
       const result = await API.listUsers();
-      ALL_USERS = result.users || result.value || [];
+      ALL_USERS = result.users || [];
       drawUsers();
-    } catch (err) {
-      console.error("loadUsers error:", err);
+    } catch {
       uEmpty.textContent = "⚠️ Failed to load users from SharePoint list.";
     }
   }
@@ -460,41 +458,28 @@
     const uEmpty = $("#userEmpty");
 
     let filtered = ALL_USERS
-      .filter(u => {
-        const name = (u.FullName || u.Title || "").toLowerCase();
-        const mail = (u.Email || "").toLowerCase();
-        return !q || name.includes(q) || mail.includes(q);
-      })
-      .filter(u => {
-        const r = (spVal(u.Role) || u.Role || "user").toLowerCase();
-        return !role || r === role.toLowerCase();
-      });
+      .filter(u => !q || (u.FullName || "").toLowerCase().includes(q) || (u.Email || "").toLowerCase().includes(q))
+      .filter(u => !role || u.Role === role);
 
     const tbody = $("#userTable");
-    tbody.innerHTML = filtered.map(u => {
-      const roleText = spVal(u.Role) || u.Role || "user";
-      const isActive = u.IsActive !== undefined ? (u.IsActive !== false && u.IsActive !== "No" && u.IsActive !== 0) : true;
-      const userKey = esc(u.Id || u.ID || u.Title || u.Email);
-
-      return `
+    tbody.innerHTML = filtered.map(u => `
       <tr>
-        <td style="font-weight: 600;">${esc(u.FullName || u.Title || "—")}</td>
-        <td>${esc(u.Email || "—")}</td>
+        <td style="font-weight: 600;">${esc(u.FullName || "—")}</td>
+        <td>${esc(u.Email)}</td>
         <td>${esc(u.Department || "—")}</td>
-        <td><span class="pill ${String(roleText).toLowerCase() === "admin" ? "Open" : ""}">${esc(roleText)}</span></td>
-        <td><span class="pill ${isActive ? "Active" : ""}">${isActive ? "Active" : "Disabled"}</span></td>
-        <td>${u.LastLogin || u.Modified ? fmtDate(u.LastLogin || u.Modified) : "Never"}</td>
+        <td><span class="pill ${u.Role === "admin" ? "Open" : ""}">${esc(u.Role || "user")}</span></td>
+        <td><span class="pill ${u.IsActive ? "Active" : ""}">${u.IsActive ? "Active" : "Disabled"}</span></td>
+        <td>${u.LastLogin ? fmtDate(u.LastLogin) : "Never"}</td>
         <td style="text-align: right;">
-          <button class="btn sm alt toggle-role-btn" data-userid="${userKey}" data-role="${String(roleText).toLowerCase() === 'admin' ? 'user' : 'admin'}">
-            ${String(roleText).toLowerCase() === "admin" ? "Demote" : "Promote"}
+          <button class="btn sm alt toggle-role-btn" data-userid="${esc(u.Title || u.Id)}" data-role="${u.Role === 'admin' ? 'user' : 'admin'}">
+            ${u.Role === "admin" ? "Demote" : "Promote"}
           </button>
-          <button class="btn sm alt toggle-active-btn" data-userid="${userKey}" data-active="${!isActive}">
-            ${isActive ? "Disable" : "Enable"}
+          <button class="btn sm alt toggle-active-btn" data-userid="${esc(u.Title || u.Id)}" data-active="${!u.IsActive}">
+            ${u.IsActive ? "Disable" : "Enable"}
           </button>
         </td>
       </tr>
-      `;
-    }).join("");
+    `).join("");
 
     // Safe event listeners for user actions
     tbody.querySelectorAll(".toggle-role-btn").forEach(btn => {
@@ -537,13 +522,6 @@
   $("#refreshUsers").onclick = loadUsers;
   loadUsers();
 
-  // Helper to extract value from SharePoint Choice object or primitive
-  const spVal = v => {
-    if (v === null || v === undefined) return null;
-    if (typeof v === "object") return v.Value || v.value || v.Label || v.label || null;
-    return String(v);
-  };
-
   // ── Admin Ticket Management ────────────────────────────────
   let ALL_TICKETS = [];
   async function loadAllTickets() {
@@ -553,10 +531,9 @@
 
     try {
       const result = await API.listAllTickets();
-      ALL_TICKETS = result.tickets || result.value || [];
+      ALL_TICKETS = result.tickets || [];
       drawAllTickets();
-    } catch (err) {
-      console.error("loadAllTickets error:", err);
+    } catch {
       tEmpty.textContent = "⚠️ Failed to load tickets from SharePoint.";
     }
   }
@@ -567,44 +544,30 @@
     const tEmpty = $("#adminTicketEmpty");
 
     let filtered = ALL_TICKETS
-      .filter(t => {
-        const sub = (t.Title || t.Subject || spVal(t.Title) || "").toLowerCase();
-        const req = (t.RequesterName || "").toLowerCase();
-        return !q || sub.includes(q) || req.includes(q);
-      })
-      .filter(t => {
-        const st = spVal(t.Status) || t.Status || "Open";
-        return !status || st.toLowerCase() === status.toLowerCase();
-      });
+      .filter(t => !q || (t.Title || "").toLowerCase().includes(q) || (t.RequesterName || "").toLowerCase().includes(q))
+      .filter(t => !status || t.Status === status);
 
     const tbody = $("#adminTicketTable");
     tbody.innerHTML = filtered.map(t => {
-      const statusText = spVal(t.Status) || t.Status || "Open";
-      const statusClass = esc(statusText).replace(/\s+/g, "-");
-      const ticketNum = esc(t.TicketNo || t.ticketNo || t.Id || t.ID || "—");
-      const ticketSubject = esc(t.Title || t.Subject || spVal(t.Title) || "—");
-      const category = esc(spVal(t.Category) || t.Category || "General");
-      const priority = esc(spVal(t.Priority) || t.Priority || "Medium");
-      const ticketId = esc(t.Id || t.ID || t.TicketNo || "");
-      const createdDate = t.CreatedDate || t.Created || t.Modified;
-
+      const statusClass = esc(t.Status || "Open").replace(/\s+/g, "-");
+      const ticketId = esc(t.Id || t.Title);
       return `
         <tr>
-          <td><strong>#${ticketNum}</strong></td>
+          <td><strong>#${esc(t.TicketNo || t.Id)}</strong></td>
           <td>
-            <div style="font-weight: 600;">${ticketSubject}</div>
+            <div style="font-weight: 600;">${esc(t.Title || "No Subject")}</div>
             ${t.AdminNotes ? `<div style="font-size:12px;color:var(--mu);">Notes: ${esc(t.AdminNotes)}</div>` : ""}
           </td>
           <td>
             ${esc(t.RequesterName || "—")}<br>
             <small style="color:var(--mu);">${esc(t.RequesterEmail || "")}</small>
           </td>
-          <td>${category}</td>
-          <td>${priority}</td>
-          <td><span class="pill ${statusClass}">${statusText}</span></td>
-          <td>${fmtDate(createdDate)}</td>
+          <td>${esc(t.Category || "General")}</td>
+          <td>${esc(t.Priority || "Medium")}</td>
+          <td><span class="pill ${statusClass}">${esc(t.Status || "Open")}</span></td>
+          <td>${fmtDate(t.CreatedDate)}</td>
           <td style="text-align: right;">
-            <button class="btn sm open-modal-btn" data-id="${ticketId}" data-status="${esc(statusText)}">
+            <button class="btn sm open-modal-btn" data-id="${ticketId}" data-status="${esc(t.Status || 'Open')}">
               ✏️ Manage
             </button>
           </td>
@@ -623,7 +586,7 @@
     });
 
     tEmpty.style.display = filtered.length ? "none" : "block";
-    if (!filtered.length) tEmpty.textContent = ALL_TICKETS.length ? "No tickets match your filter." : "No support tickets found.";
+    if (!filtered.length) tEmpty.textContent = "No tickets match your filter.";
   }
 
   $("#modalCancel").onclick = () => $("#ticketModal").classList.remove("show");
