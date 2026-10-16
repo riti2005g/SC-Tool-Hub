@@ -282,12 +282,6 @@
       $$(".admin-section").forEach(s => s.classList.remove("active"));
       const targetSec = $(`#sec-${btn.dataset.tab}`);
       if (targetSec) targetSec.classList.add("active");
-
-      // Auto-refresh data when switching to that tab
-      if (btn.dataset.tab === "tickets") loadAllTickets();
-      if (btn.dataset.tab === "users") loadUsers();
-      if (btn.dataset.tab === "logs") loadLogs();
-      if (btn.dataset.tab === "upload") loadAdminFiles();
     };
   });
 
@@ -559,12 +553,11 @@
 
     try {
       const result = await API.listAllTickets();
-      console.log("Admin listAllTickets result:", result);
       ALL_TICKETS = result.tickets || result.value || [];
       drawAllTickets();
     } catch (err) {
       console.error("loadAllTickets error:", err);
-      tEmpty.textContent = `⚠️ Failed to load tickets from SharePoint (${err.message || err}).`;
+      tEmpty.textContent = "⚠️ Failed to load tickets from SharePoint.";
     }
   }
 
