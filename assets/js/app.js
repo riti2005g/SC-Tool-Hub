@@ -240,7 +240,25 @@ const API = {
 
   // Admin Operations
   async listUsers() {
-    return this.call(CFG.FLOW_ADMIN_URL, "listUsers");
+    try {
+      const res = await this.call(CFG.FLOW_ADMIN_URL, "listUsers", {}, 10000);
+      if (res && (Array.isArray(res.users) || Array.isArray(res.value))) {
+        return { users: res.users || res.value };
+      }
+    } catch (e) {
+      console.warn("FLOW_ADMIN_URL listUsers failed, trying FLOW_AUTH_URL fallback:", e);
+    }
+
+    try {
+      const res = await this.call(CFG.FLOW_AUTH_URL, "list", {}, 10000);
+      if (res && (Array.isArray(res.users) || Array.isArray(res.value))) {
+        return { users: res.users || res.value };
+      }
+    } catch (e) {
+      console.warn("FLOW_AUTH_URL list fallback failed:", e);
+    }
+
+    return { users: [] };
   },
   async updateUser(userId, changes) {
     return this.call(CFG.FLOW_ADMIN_URL, "updateUser", { targetUserId: userId, ...changes });
