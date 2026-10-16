@@ -128,20 +128,33 @@
       const tickets = result.tickets || [];
       const tbody = $("#ticketTable");
 
+      // SharePoint Choice fields return objects like {"Value": "Open"}
+      // This helper safely extracts the display string
+      const spVal = v => {
+        if (v === null || v === undefined) return null;
+        if (typeof v === "object") return v.Value || v.value || v.Label || null;
+        return String(v);
+      };
+
       tbody.innerHTML = tickets.map(t => {
-        const ticketNum = esc(t.TicketNo || t.Id || "—");
-        const statusClass = esc(t.Status || "Open").replace(/\s+/g, "-");
+        const ticketNum = esc(t.TicketNo || t.ticketNo || t.ID || t.Id || "—");
+        // Title in SharePoint is the subject; also check Subject column
+        const subject = esc(t.Title || t.Subject || spVal(t.Title) || "—");
+        const category = esc(spVal(t.Category) || "General");
+        const priority = esc(spVal(t.Priority) || "Medium");
+        const status = esc(spVal(t.Status) || "Open");
+        const statusClass = status.replace(/\s+/g, "-");
         return `
           <tr>
             <td><strong>#${ticketNum}</strong></td>
             <td>
-              <div style="font-weight: 600; color: var(--tx);">${esc(t.Title || t.Subject || "No Title")}</div>
+              <div style="font-weight: 600; color: var(--tx);">${subject}</div>
               ${t.AdminNotes ? `<div style="font-size:12px;color:var(--mu);margin-top:2px;">💬 Admin: ${esc(t.AdminNotes)}</div>` : ""}
             </td>
-            <td>${esc(t.Category || "General")}</td>
-            <td>${esc(t.Priority || "Medium")}</td>
-            <td><span class="pill ${statusClass}">${esc(t.Status || "Open")}</span></td>
-            <td>${fmtDate(t.CreatedDate)}</td>
+            <td>${category}</td>
+            <td>${priority}</td>
+            <td><span class="pill ${statusClass}">${status}</span></td>
+            <td>${fmtDate(t.CreatedDate || t.Created)}</td>
           </tr>
         `;
       }).join("");
