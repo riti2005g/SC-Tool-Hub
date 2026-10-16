@@ -264,45 +264,56 @@ const API = {
     return this.call(CFG.FLOW_ADMIN_URL, "updateUser", { targetUserId: userId, ...changes });
   },
   async getStats() {
-    // Collect live stats in parallel for speed
-    const stats = { totalUsers: 0, totalFiles: 0, openTickets: 0, recentLogs: 0 };
-
     try {
-      const [filesRes, ticketsRes, usersRes, logsRes] = await Promise.allSettled([
-        this.listFiles(),
-        this.listTickets(),
-        this.listUsers(),
-        this.getLogs()
-      ]);
-
-      if (filesRes.status === "fulfilled" && filesRes.value?.files) {
-        stats.totalFiles = filesRes.value.files.length;
-      }
-      if (ticketsRes.status === "fulfilled" && ticketsRes.value?.tickets) {
-        const allT = ticketsRes.value.tickets;
-        stats.openTickets = allT.filter(t => {
-          const s = (typeof t.Status === "object" ? (t.Status?.Value || t.Status?.value) : t.Status) || "Open";
-          const st = String(s).toLowerCase();
-          return st === "open" || st === "in progress" || st.includes("open");
-        }).length;
-      }
-      if (usersRes.status === "fulfilled" && usersRes.value?.users) {
-        stats.totalUsers = usersRes.value.users.length;
-      }
-      if (logsRes.status === "fulfilled" && logsRes.value?.logs) {
-        stats.recentLogs = logsRes.value.logs.length;
+      const res = await this.call(CFG.FLOW_ADMIN_URL, "getStats", {}, 10000);
+      if (res && (res.totalUsers !== undefined || res.openTickets !== undefined || res.totalFiles !== undefined)) {
+        return res;
       }
     } catch (e) {
-      console.warn("Error calculating stats:", e);
+      console.warn("FLOW_ADMIN_URL getStats unavailable, computing stats dynamically from operational endpoints...");
     }
+
+    // Dynamic stats aggregator from operational flows:
+    const stats = { totalUsers: "—", totalFiles: "—", openTickets: "—", recentLogs: "—" };
+
+    try {
+      const filesRes = await this.listFiles();
+      stats.totalFiles = (filesRes.files || []).length;
+    } catch {}
+
+    try {
+      const ticketsRes = await this.listAllTickets();
+      const allT = ticketsRes.tickets || [];
+      const openCount = allT.filter(t => {
+        const s = (typeof t.Status === "object" ? t.Status?.Value : t.Status) || "Open";
+        return String(s).toLowerCase() === "open" || String(s).toLowerCase() === "in progress";
+      }).length;
+      stats.openTickets = openCount;
+    } catch {}
+
+    try {
+      const usersRes = await this.listUsers();
+      stats.totalUsers = (usersRes.users || []).length;
+    } catch {}
+
+    try {
+      const logsRes = await this.getLogs();
+      stats.recentLogs = (logsRes.logs || []).length;
+    } catch {}
 
     return stats;
   },
   async listAllTickets() {
-    // Directly use listTickets which connects to the verified Tickets flow
-    const res = await this.listTickets();
-    console.log("listAllTickets response:", res);
-    return res;
+    // Primary: Call the working Tickets flow directly (returns all tickets)
+    try {
+      const res = await this.call(CFG.FLOW_TICKETS_URL, "list", {}, 15000);
+      if (res && Array.isArray(res.tickets)) return res;
+      if (res && Array.isArray(res.value)) return { tickets: res.value };
+    } catch (e) {
+      console.warn("FLOW_TICKETS_URL failed for listAllTickets, falling back to FLOW_ADMIN_URL:", e);
+    }
+    // Fallback: FLOW_ADMIN_URL
+    return this.call(CFG.FLOW_ADMIN_URL, "listAllTickets");
   },
 
   // Audit Logs Operations
