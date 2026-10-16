@@ -246,9 +246,55 @@ const API = {
     return this.call(CFG.FLOW_ADMIN_URL, "updateUser", { targetUserId: userId, ...changes });
   },
   async getStats() {
-    return this.call(CFG.FLOW_ADMIN_URL, "getStats");
+    try {
+      const res = await this.call(CFG.FLOW_ADMIN_URL, "getStats", {}, 10000);
+      if (res && (res.totalUsers !== undefined || res.openTickets !== undefined || res.totalFiles !== undefined)) {
+        return res;
+      }
+    } catch (e) {
+      console.warn("FLOW_ADMIN_URL getStats unavailable, computing stats dynamically from operational endpoints...");
+    }
+
+    // Dynamic stats aggregator from operational flows:
+    const stats = { totalUsers: "—", totalFiles: "—", openTickets: "—", recentLogs: "—" };
+
+    try {
+      const filesRes = await this.listFiles();
+      stats.totalFiles = (filesRes.files || []).length;
+    } catch {}
+
+    try {
+      const ticketsRes = await this.listAllTickets();
+      const allT = ticketsRes.tickets || [];
+      const openCount = allT.filter(t => {
+        const s = (typeof t.Status === "object" ? t.Status?.Value : t.Status) || "Open";
+        return String(s).toLowerCase() === "open" || String(s).toLowerCase() === "in progress";
+      }).length;
+      stats.openTickets = openCount;
+    } catch {}
+
+    try {
+      const usersRes = await this.listUsers();
+      stats.totalUsers = (usersRes.users || []).length;
+    } catch {}
+
+    try {
+      const logsRes = await this.getLogs();
+      stats.recentLogs = (logsRes.logs || []).length;
+    } catch {}
+
+    return stats;
   },
   async listAllTickets() {
+    // Primary: Call the working Tickets flow directly (returns all tickets)
+    try {
+      const res = await this.call(CFG.FLOW_TICKETS_URL, "list", {}, 15000);
+      if (res && Array.isArray(res.tickets)) return res;
+      if (res && Array.isArray(res.value)) return { tickets: res.value };
+    } catch (e) {
+      console.warn("FLOW_TICKETS_URL failed for listAllTickets, falling back to FLOW_ADMIN_URL:", e);
+    }
+    // Fallback: FLOW_ADMIN_URL
     return this.call(CFG.FLOW_ADMIN_URL, "listAllTickets");
   },
 
