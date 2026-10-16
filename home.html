@@ -72,6 +72,22 @@
 
   API.log("page_view", "Home dashboard");
 
+  // Show Admin Panel shortcut tile if user is an administrator
+  if (S.isAdmin) {
+    const adminTile = document.createElement("a");
+    adminTile.className = "tile";
+    adminTile.href = "admin.html";
+    adminTile.id = "tile-admin";
+    adminTile.style.border = "1px solid rgba(226, 0, 15, 0.4)";
+    adminTile.innerHTML = `
+      <div class="ic" style="background: linear-gradient(135deg, #a1000b 0%, #e2000f 100%);">🛡️</div>
+      <h3>Admin Control Center</h3>
+      <p>Manage SharePoint files, user governance, support tickets, and system audit logs.</p>
+      <div class="go">➜</div>
+    `;
+    $(".grid").appendChild(adminTile);
+  }
+
   // Fetch announcements count for bell badge
   try {
     const result = await API.listUpdates();

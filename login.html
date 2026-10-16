@@ -32,8 +32,13 @@
       </div>
 
       <div class="tabs">
-        <button type="button" class="on" data-mode="in">Sign in</button>
+        <button type="button" class="on" data-mode="in">User Sign in</button>
+        <button type="button" data-mode="admin">🛡️ Admin Portal</button>
         <button type="button" data-mode="up">Create account</button>
+      </div>
+
+      <div id="adminNotice" class="msg info" style="display: none; margin-bottom: 18px; font-size: 13px; line-height: 1.5; background: rgba(226,0,15,0.08); border: 1px solid rgba(226,0,15,0.25); color: var(--tx);">
+        🛡️ <strong>Administrator Access:</strong> Sign in with your Danfoss admin account to directly access the Control Panel, user governance, file management, and audit logs.
       </div>
 
       <div id="nameWrap" hidden>
@@ -41,7 +46,7 @@
         <input id="fullName" autocomplete="name" placeholder="First and last name">
       </div>
 
-      <label for="email">Enterprise Email</label>
+      <label for="email" id="emailLabel">Enterprise Email</label>
       <input id="email" type="email" required autocomplete="email" placeholder="you@danfoss.com">
 
       <label for="password">Password</label>
@@ -96,9 +101,18 @@
     btn.onclick = () => {
       mode = btn.dataset.mode;
       $$(".tabs button").forEach(b => b.classList.toggle("on", b === btn));
-      $("#nameWrap").hidden = mode === "in";
+      $("#nameWrap").hidden = mode !== "up";
       $("#fullName").required = mode === "up";
-      $("#submitBtn").textContent = mode === "in" ? "Sign in" : "Create account";
+      $("#adminNotice").style.display = mode === "admin" ? "block" : "none";
+      $("#emailLabel").textContent = mode === "admin" ? "Admin Enterprise Email" : "Enterprise Email";
+      
+      if (mode === "admin") {
+        $("#submitBtn").textContent = "Sign in to Admin Panel 🛡️";
+      } else if (mode === "up") {
+        $("#submitBtn").textContent = "Create account";
+      } else {
+        $("#submitBtn").textContent = "Sign in";
+      }
       $("#msgBox").className = "msg";
     };
   });
@@ -132,6 +146,7 @@
         mode = "in";
         $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === "in"));
         $("#nameWrap").hidden = true;
+        $("#adminNotice").style.display = "none";
         btn.textContent = "Sign in";
       } else {
         const result = await API.login(email, password);
@@ -142,7 +157,8 @@
 
         // Defensively handle all SharePoint column name variants:
         // SharePoint returns PascalCase (Role, IsActive), Flow may return camelCase
-        const resolvedRole = result.role || result.Role || "user";
+        const rawRole = result.role || result.Role || "user";
+        const resolvedRole = typeof rawRole === "object" ? (rawRole.Value || rawRole.value || "user") : String(rawRole).toLowerCase();
         const resolvedIsActive = result.isActive !== undefined ? result.isActive
           : result.IsActive !== undefined ? result.IsActive
           : result.Active !== undefined ? result.Active
@@ -151,6 +167,11 @@
         // Block login if account is deactivated
         if (resolvedIsActive === false || resolvedIsActive === "No" || resolvedIsActive === 0) {
           throw new Error("Your account has been deactivated. Please contact an administrator.");
+        }
+
+        // If logging in through the Admin Portal tab, check for admin privileges
+        if (mode === "admin" && resolvedRole !== "admin") {
+          throw new Error("Access denied: This account does not have administrator privileges. Please sign in via the User Sign in tab.");
         }
 
         Session.save({
@@ -163,12 +184,17 @@
           isActive: resolvedIsActive
         });
 
-        location.replace("home.html");
+        // Direct admins to the admin panel if logging in via Admin Portal tab or if role is admin
+        if (mode === "admin" || resolvedRole === "admin") {
+          location.replace("admin.html");
+        } else {
+          location.replace("home.html");
+        }
       }
     } catch (err) {
       msg(err.message, "err");
       btn.disabled = false;
-      btn.textContent = mode === "in" ? "Sign in" : "Create account";
+      btn.textContent = mode === "admin" ? "Sign in to Admin Panel 🛡️" : (mode === "up" ? "Create account" : "Sign in");
     }
   };
 
