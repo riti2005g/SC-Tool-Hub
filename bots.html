@@ -21,66 +21,15 @@
 
   <!-- Bot Grid -->
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
-    
-    <!-- Bot 1 -->
-    <div class="bot-card">
-      <div class="bot-head">
-        <div class="bot-icon">📦</div>
-        <span class="pill Active">Production</span>
-      </div>
-      <h3 style="font-size: 18px; margin-bottom: 6px;">SAP PO Reconciler Bot</h3>
-      <p style="color: var(--mu); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-        Automatically matches Open Purchase Orders against Supplier Delivery Confirmations in SAP ERP to eliminate manual discrepancies.
-      </p>
-      <div class="bot-meta">
-        <span>⏱️ Runs Daily at 06:00 CET</span>
-        <span>•</span>
-        <span>⚡ 99.8% Success</span>
-      </div>
-    </div>
 
-    <!-- Bot 2 -->
-    <div class="bot-card">
-      <div class="bot-head">
-        <div class="bot-icon">🔄</div>
-        <span class="pill Active">Production</span>
-      </div>
-      <h3 style="font-size: 18px; margin-bottom: 6px;">EDI 850 Dispatch Validator</h3>
-      <p style="color: var(--mu); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-        Monitors incoming Electronic Data Interchange vendor streams and flags order quantity variances exceeding safety stock margins.
+    <!-- Request / Empty State CTA -->
+    <div class="bot-card" style="border: 2px dashed var(--bd); background: var(--input-bg); align-items: center; justify-content: center; text-align: center; min-height: 240px; padding: 32px 24px;">
+      <div style="font-size: 40px; margin-bottom: 12px;">🤖</div>
+      <h3 style="font-size: 18px; margin-bottom: 8px;">No Active Bots Deployed Yet</h3>
+      <p style="color: var(--mu); font-size: 13px; max-width: 320px; margin-bottom: 20px; line-height: 1.5;">
+        Custom automation bots and scheduled tasks will be listed here as they go live. Need an automated workflow for your team?
       </p>
-      <div class="bot-meta">
-        <span>⏱️ Real-time Triggered</span>
-        <span>•</span>
-        <span>🛡️ Error Prevention</span>
-      </div>
-    </div>
-
-    <!-- Bot 3 -->
-    <div class="bot-card">
-      <div class="bot-head">
-        <div class="bot-icon">📊</div>
-        <span class="pill In-Progress">Staging Test</span>
-      </div>
-      <h3 style="font-size: 18px; margin-bottom: 6px;">DC Safety Stock Anomaly Bot</h3>
-      <p style="color: var(--mu); font-size: 14px; margin-bottom: 16px; line-height: 1.5;">
-        Scans regional Distribution Center inventories to predict lead-time stockouts before critical threshold breach.
-      </p>
-      <div class="bot-meta">
-        <span>⏱️ Weekly on Monday</span>
-        <span>•</span>
-        <span>🧪 Pilot Phase</span>
-      </div>
-    </div>
-
-    <!-- Bot 4: Request CTA -->
-    <div class="bot-card" style="border: 2px dashed var(--bd); background: var(--input-bg); align-items: center; justify-content: center; text-align: center; min-height: 220px;">
-      <div style="font-size: 36px; margin-bottom: 12px;">💡</div>
-      <h3 style="font-size: 18px; margin-bottom: 8px;">Need a New Bot for Your Team?</h3>
-      <p style="color: var(--mu); font-size: 13px; max-width: 280px; margin-bottom: 16px;">
-        Submit a ticket with your workflow requirements and our automation engineering team will assist.
-      </p>
-      <a class="btn sm" href="ticket.html?cat=Automation+bot+request">🎫 Submit Bot Specification</a>
+      <a class="btn" href="ticket.html?cat=Automation+bot+request">➕ Request Custom Bot</a>
     </div>
 
   </div>
