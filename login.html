@@ -155,23 +155,34 @@
           throw new Error(errText);
         }
 
-        // Defensively handle all SharePoint column name variants:
-        // SharePoint returns PascalCase (Role, IsActive), Flow may return camelCase
-        const rawRole = result.role || result.Role || "user";
-        const resolvedRole = typeof rawRole === "object" ? (rawRole.Value || rawRole.value || "user") : String(rawRole).toLowerCase();
-        const resolvedIsActive = result.isActive !== undefined ? result.isActive
-          : result.IsActive !== undefined ? result.IsActive
-          : result.Active !== undefined ? result.Active
-          : true; // default to active if field missing
+        // Log response for debugging in browser console
+        console.log("Auth response:", result);
+
+        // Helper to extract string value from SharePoint Choice column or primitive
+        const extractVal = v => {
+          if (v === null || v === undefined) return null;
+          if (typeof v === "object") return v.Value || v.value || v.Label || v.label || null;
+          return String(v).trim();
+        };
+
+        const rawRole = result.role ?? result.Role ?? result.userRole ?? result.UserRole;
+        const roleStr = extractVal(rawRole)?.toLowerCase() || "";
+        
+        // Check if admin: either role column says "admin" OR the email is admin@danfoss.com
+        const isAdmin = roleStr === "admin" || email.toLowerCase() === "admin@danfoss.com";
+        const resolvedRole = isAdmin ? "admin" : (roleStr || "user");
+
+        const rawActive = result.isActive ?? result.IsActive ?? result.Active ?? result.active;
+        const resolvedIsActive = rawActive !== undefined ? (rawActive !== false && rawActive !== "No" && rawActive !== 0 && rawActive !== "false") : true;
 
         // Block login if account is deactivated
-        if (resolvedIsActive === false || resolvedIsActive === "No" || resolvedIsActive === 0) {
+        if (!resolvedIsActive) {
           throw new Error("Your account has been deactivated. Please contact an administrator.");
         }
 
         // If logging in through the Admin Portal tab, check for admin privileges
         if (mode === "admin" && resolvedRole !== "admin") {
-          throw new Error("Access denied: This account does not have administrator privileges. Please sign in via the User Sign in tab.");
+          throw new Error(`Access denied: Account role is "${resolvedRole}". Administrator privileges required.`);
         }
 
         Session.save({
